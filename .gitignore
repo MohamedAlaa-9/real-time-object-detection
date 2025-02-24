@@ -3,6 +3,59 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# 🚀 General System Files
+.DS_Store
+Thumbs.db
+
+# 🖥️ Virtual Environment & Python Cache
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 📦 Backend Dependencies
+backend/.venv/
+backend/__pycache__/
+backend/logs/
+
+# 🎨 Frontend Dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+
+# 🤖 Machine Learning Artifacts
+ml-models/__pycache__/
+ml-models/checkpoints/
+ml-models/logs/
+ml-models/runs/  # YOLOv8 training runs
+
+# 📊 Datasets & Data Files
+datasets/raw/
+datasets/processed/
+datasets/*.zip
+datasets/*.tar.gz
+datasets/*.tgz
+
+# 🔑 Environment Variables & Secrets
+.env
+backend/.env
+frontend/.env
+infra/.env
+
+# 🛠 DevOps & Cloud Deployment Files
+terraform.tfstate
+terraform.tfstate.backup
+infra/*.tfvars
+infra/azure_credentials.json
+
+# 🐳 Docker & Build Artifacts
+docker-compose.override.yml
+*.log
+*.pid
+*.sock
+
+
 # C extensions
 *.so
 
