@@ -6,6 +6,20 @@ __pycache__/
 # C extensions
 *.so
 
+# Virtual environment
+venv/
+__pycache__/
+
+# Data
+datasets/
+logs/
+
+# Secrets
+.env
+
+# Ignore Node.js dependencies
+frontend/node_modules/
+
 # Distribution / packaging
 .Python
 build/
