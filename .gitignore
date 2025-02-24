@@ -11,7 +11,7 @@ venv/
 __pycache__/
 
 # Data
-datasets/pocessed/*
+datasets/processed/*
 datasets/raw/*
 logs/
 
