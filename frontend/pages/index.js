@@ -1,20 +1,37 @@
 import React, { useEffect, useState, useRef } from "react";
-import socket from "../api";
 import CameraSelector from "../components/CameraSelector";
+import createSocket from "../api";
 
 const App = () => {
   const [image, setImage] = useState(null);
   const [detections, setDetections] = useState([]);
-  const [selectedCamera, setSelectedCamera] = useState(null);
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const [socket, setSocket] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setImage(`data:image/jpeg;base64,${data.image}`);
-      setDetections(data.detections);
+    if (selectedCamera) {
+      console.log("Selected camera:", selectedCamera);
+      const newSocket = createSocket(selectedCamera);
+      setSocket(newSocket);
+    }
+
+    return () => {
+      if (socket) {
+        socket.close();
+      }
     };
-  }, []);
+  }, [selectedCamera]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        setImage(`data:image/jpeg;base64,${data.image}`);
+        setDetections(data.detections);
+      };
+    }
+  }, [socket]);
 
   useEffect(() => {
     if (image && detections.length > 0) {
