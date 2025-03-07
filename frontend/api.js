@@ -1,3 +1,4 @@
+// filepath: /home/sci/WSL_Space/real-time-object-detection/frontend/api.js
 const socket = new WebSocket("ws://localhost:8000/ws");
 
 socket.onopen = () => {
