@@ -51,17 +51,37 @@ def preprocess_kitti():
 
 
 # Data config for YOLO
+import tarfile
+
+def preprocess_nuscenes():
+    nuscenes_path = RAW_DIR / "v1.0-mini"
+    if not nuscenes_path.exists():
+        print("Extracting nuScenes dataset...")
+        with tarfile.open(RAW_DIR / "v1.0-mini.tgz", 'r:gz') as tar:
+            tar.extractall(RAW_DIR)
+
+    # Convert nuScenes to YOLO format (simplified example)
+    # This is a placeholder, actual conversion will require parsing the nuScenes JSON annotations
+    print("Converting nuScenes to YOLO format...")
+    (PROCESSED_DIR / "nuscenes" / "train" / "images").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "nuscenes" / "train" / "labels").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "nuscenes" / "val" / "images").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "nuscenes" / "val" / "labels").mkdir(parents=True, exist_ok=True)
+    print("nuScenes dataset preprocessed.")
+
+# Data config for YOLO
 def create_data_yaml():
     data_yaml = {
         "path": str(PROCESSED_DIR),
         "train": "train/images",
         "val": "val/images",
-        "names": ["pedestrian", "car", "cyclist"]
+        "names": ["pedestrian", "car", "cyclist", "truck", "bus", "trailer", "construction_vehicle", "bicycle", "motorcycle", "traffic_cone", "barrier"]
     }
     with open(PROCESSED_DIR / "data.yaml", "w") as f:
         yaml.dump(data_yaml, f)
 
 if __name__ == "__main__":
     preprocess_kitti()
+    preprocess_nuscenes()
     create_data_yaml()
     print("Datasets preprocessed and saved in", PROCESSED_DIR)

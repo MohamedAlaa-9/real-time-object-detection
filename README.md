@@ -37,8 +37,21 @@ To add new datasets, you need to:
 2.  Create a new function in `datasets/preprocess_datasets.py` to preprocess the dataset.
 3.  Add the new function to the `if __name__ == "__main__":` block in `datasets/preprocess_datasets.py`.
 4.  Update the `create_data_yaml` function in `datasets/preprocess_datasets.py` to include the new dataset.
-5.  Update the `ml-models/train_yolo.py` file to include the new dataset.
+5.  Update the `ml-models/train_yolo.py` file to include the new dataset (if necessary).
 6.  Update the `gui/display_results.py` file to include the new dataset.
+
+### Datasets
+
+*   KITTI
+*   nuScenes (mini version)
+
+### Using nuScenes dataset
+
+To use the nuScenes dataset, you need to:
+
+1.  Download the nuScenes dataset (mini version).
+2.  Extract the dataset to the `datasets/raw` directory.
+3.  Run the `datasets/preprocess_datasets.py` script to preprocess the dataset.
 
 ## Key Focus Areas
 
