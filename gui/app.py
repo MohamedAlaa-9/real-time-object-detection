@@ -2,7 +2,7 @@ import tkinter as tk
 import cv2
 from PIL import Image, ImageTk
 from .display_results import display_detections
-from ml-models.inference import infer
+from ml_models.inference import infer
 
 class App:
     def __init__(self, window, window_title):
