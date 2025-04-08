@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 import torch
 import mlflow
+import os
 
 # Load YOLOv11 model
 model = YOLO('ml-models/yolo11n.pt')  # Start with nano, upgrade to larger variants if needed
@@ -22,6 +23,11 @@ training_args = {
     "hsv_s": 0.7,     # Saturation
     "hsv_v": 0.4,     # Value
 }
+
+# Validate dataset paths
+if not os.path.exists(data_yaml):
+    print(f"Error: data.yaml file not found at {data_yaml}")
+    exit()
 
 # Train with MLflow logging
 with mlflow.start_run():

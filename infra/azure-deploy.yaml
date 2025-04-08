@@ -26,6 +26,13 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
+            # Check if Docker is installed
+            if ! command -v docker &> /dev/null
+            then
+              echo "Docker is not installed. Please install Docker by following the instructions at https://docs.docker.com/engine/install/"
+              exit 1
+            fi
+
             az vm run-command invoke \
               -g ${{ secrets.AZURE_RESOURCE_GROUP }} \
               -n ${{ secrets.AZURE_VM_NAME }} \

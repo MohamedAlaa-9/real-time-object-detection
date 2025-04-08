@@ -105,7 +105,7 @@ The following instructions provide a detailed guide on how to run the project:
 
     *   This command executes the `optimize_tensorrt.py` script located in the `ml-models` directory. This script optimizes the ONNX model for TensorRT, which is a high-performance inference engine developed by NVIDIA.
     *   **Step-by-step explanation:**
-        *   Ensure that you have TensorRT installed and configured correctly.
+        *   Ensure that you have TensorRT installed and configured correctly. This requires NVIDIA GPU drivers and the CUDA Toolkit.
         *   Open a terminal or command prompt.
         *   Navigate to the project's root directory.
         *   Run the command `python ml-models/optimize_tensorrt.py`.

@@ -12,12 +12,13 @@ def display_detections(frame):
         class_names = data["names"]
     
     # Define colors for each class (you can customize these)
-    colors = [(0, 255, 0), (0, 0, 255), (255, 0, 0), (255, 255, 0), (0, 255, 255), (255, 0, 255), (192, 192, 192), (128, 128, 128), (128, 0, 0), (128, 128, 0), (0, 128, 0)]
+    import random
+    colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(len(class_names))]
     
     for box, score, cls in zip(boxes, scores, classes):
         x_min, y_min, x_max, y_max = box
         label = f"{class_names[cls]}: {score:.2f}"
-        color = colors[cls % len(colors)]  # Ensure color is within range
+        color = colors[cls]  # Use color directly
         cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
         cv2.putText(frame, label, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
     

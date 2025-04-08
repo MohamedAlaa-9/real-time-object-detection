@@ -4,4 +4,4 @@ global:
 scrape_configs:
   - job_name: "object_detection"
     static_configs:
-      - targets: ["localhost:8000"]  # Metrics endpoint in inference.py
+      - targets: ["${METRICS_ENDPOINT:-localhost:8000}"]  # Metrics endpoint in inference.py

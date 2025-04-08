@@ -27,19 +27,31 @@ def preprocess_kitti():
 
     if not kitti_image_path.exists():
         print("Downloading KITTI image data...")
-        urlretrieve(KITTI_IMAGE_URL, kitti_image_path)
+        try:
+            urlretrieve(KITTI_IMAGE_URL, kitti_image_path)
+        except Exception as e:
+            print(f"Failed to download KITTI image data: {e}")
+            return
         with zipfile.ZipFile(kitti_image_path, 'r') as zip_ref:
             zip_ref.extractall(RAW_DIR / 'kitti')
 
     if not kitti_label_path.exists():
         print("Downloading KITTI label data...")
-        urlretrieve(KITTI_LABEL_URL, kitti_label_path)
+        try:
+            urlretrieve(KITTI_LABEL_URL, kitti_label_path)
+        except Exception as e:
+            print(f"Failed to download KITTI label data: {e}")
+            return
         with zipfile.ZipFile(kitti_label_path, 'r') as zip_ref:
             zip_ref.extractall(RAW_DIR / 'kitti')
 
     if not kitti_calib_path.exists():
         print("Downloading KITTI calibration data...")
-        urlretrieve(KITTI_CALIB_URL, kitti_calib_path)
+        try:
+            urlretrieve(KITTI_CALIB_URL, kitti_calib_path)
+        except Exception as e:
+            print(f"Failed to download KITTI calibration data: {e}")
+            return
         with zipfile.ZipFile(kitti_calib_path, 'r') as zip_ref:
             zip_ref.extractall(RAW_DIR / 'kitti')
     
@@ -73,7 +85,7 @@ def preprocess_kitti():
 # Data config for YOLO
 def create_data_yaml():
     data_yaml = {
-        "path": str(PROCESSED_DIR),
+        "path": "../datasets/processed",
         "train": "train/images",
         "val": "val/images",
         "names": ["pedestrian", "car", "cyclist"]
