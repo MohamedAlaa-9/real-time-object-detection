@@ -26,9 +26,7 @@ training_args = {
 # Train with MLflow logging
 with mlflow.start_run():
     mlflow.log_params(training_args)
-    model.train(**training_args, callbacks={
-        "on_epoch_end": lambda state: mlflow.log_metric("loss", state.loss.item())
-    })
+    model.train(**training_args)
     mlflow.pytorch.log_model(model, "model")
 
 # Save the best model

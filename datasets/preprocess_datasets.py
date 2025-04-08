@@ -76,7 +76,7 @@ def create_data_yaml():
         "path": str(PROCESSED_DIR),
         "train": "train/images",
         "val": "val/images",
-        "names": ["pedestrian", "car", "cyclist", "truck", "bus", "trailer", "construction_vehicle", "bicycle", "motorcycle", "traffic_cone", "barrier"]
+        "names": ["pedestrian", "car", "cyclist"]
     }
     with open(PROCESSED_DIR / "data.yaml", "w") as f:
         yaml.dump(data_yaml, f)
