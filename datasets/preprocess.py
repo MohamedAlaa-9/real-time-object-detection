@@ -52,8 +52,8 @@ def convert_to_yolo_format(dataset_name):
     yolo_path = os.path.join(PROCESSED_DIR, dataset_name)
     os.makedirs(yolo_path, exist_ok=True)
     
-    if dataset_name == "coco":
-        coco_to_yolo()
+    if dataset_name == "openimages":
+        openimages_to_yolo()
     elif dataset_name == "kitti":
         kitti_to_yolo()
     elif dataset_name == "bdd100k":
