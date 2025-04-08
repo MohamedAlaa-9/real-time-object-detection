@@ -8,8 +8,8 @@ This project focuses on building a machine learning model that can detect and cl
 real-time-object-detection/
 ├── ml-models/                # Model training and optimization
 │   ├── train_yolo.py         # YOLOv11 training script
-│   ├── export_model.py       # ONNX conversion
-│   ├── optimize_tensorrt.py  # TensorRT optimization
+│   ├── export_model.py       # Export model to ONNX format
+│   ├── optimize_tensorrt.py  # Optimize ONNX model for TensorRT
 │   └── inference.py          # Real-time inference
 ├── gui/                      # GUI for real-time testing
 │   ├── app.py                # Main GUI script
@@ -53,5 +53,6 @@ To add new datasets, you need to:
 1.  Install the required dependencies: `pip install -r requirements.txt`
 2.  Download and preprocess the KITTI dataset: `python datasets/preprocess_datasets.py`
 3.  Train the YOLOv11 model: `python ml-models/train_yolo.py`
-4.  Export and optimize the model: `python ml-models/export_model.py` and `python ml-models/optimize_tensorrt.py`
-5.  Run the GUI: `python gui/app.py`
+4.  Export the model to ONNX format: `python ml-models/export_model.py`
+5.  Optimize the ONNX model for TensorRT: `python ml-models/optimize_tensorrt.py`
+6.  Run the GUI: `python gui/app.py`

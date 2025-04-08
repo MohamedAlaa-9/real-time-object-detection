@@ -1,6 +1,7 @@
 import os
 import cv2
-import json
+import yaml
+import zipfile
 import numpy as np
 from pathlib import Path
 from urllib.request import urlretrieve
@@ -14,12 +15,13 @@ for dir in [RAW_DIR, PROCESSED_DIR]:
 
 # Download and preprocess KITTI
 def preprocess_kitti():
-    kitti_url = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip"  # Example URL
+    kitti_url = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2/KITTI_object.zip"  # Actual URL
     kitti_path = RAW_DIR / "kitti.zip"
     if not kitti_path.exists():
         print("Downloading KITTI dataset...")
         urlretrieve(kitti_url, kitti_path)
-        os.system(f"unzip {kitti_path} -d {RAW_DIR / 'kitti'}")
+        with zipfile.ZipFile(kitti_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
     
     # Convert KITTI to YOLO format (simplified example)
     kitti_images = RAW_DIR / "kitti/training/image_2"
@@ -54,10 +56,10 @@ def create_data_yaml():
         "path": str(PROCESSED_DIR),
         "train": "train/images",
         "val": "val/images",
-        "names": ["pedestrian", "vehicle"]
+        "names": ["pedestrian", "car", "cyclist"]
     }
     with open(PROCESSED_DIR / "data.yaml", "w") as f:
-        json.dump(data_yaml, f)
+        yaml.dump(data_yaml, f)
 
 if __name__ == "__main__":
     preprocess_kitti()

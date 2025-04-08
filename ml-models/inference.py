@@ -4,7 +4,7 @@ import tensorrt as trt
 import pycuda.driver as cuda
 import pycuda.autoinit
 from prometheus_client import Counter, Histogram, start_http_server
-from utils import post_process_yolo  # Helper function defined below
+from utils import post_process_yolo
 
 # Metrics
 INFERENCE_COUNT = Counter("inference_total", "Total number of inferences")
@@ -47,26 +47,7 @@ def infer(frame):
         stream.synchronize()
 
         # Post-process
-        detections = outputs[0]['host'].reshape(-1, 85)  # Adjust based on YOLOv11 output
-        boxes, scores, classes = post_process_yolo(detections, 640, 640)
+        detections = outputs[0]['host'].reshape(1, -1, 85)  # Adjust based on YOLOv11 output
+        boxes, scores, classes = post_process_yolo(detections[0], 640, 640)
         INFERENCE_COUNT.inc()
         return boxes, scores, classes
-
-# Helper function for post-processing
-def post_process_yolo(detections, img_w, img_h, conf_thres=0.5, iou_thres=0.6):
-    boxes, scores, classes = [], [], []
-    for det in detections:
-        conf = det[4] * max(det[5:])  # Objectness * max class score
-        if conf > conf_thres:
-            x_center, y_center, w, h = det[0:4]
-            x_min = int((x_center - w / 2) * img_w)
-            y_min = int((y_center - h / 2) * img_h)
-            x_max = int((x_center + w / 2) * img_w)
-            y_max = int((y_center + h / 2) * img_h)
-            boxes.append([x_min, y_min, x_max, y_max])
-            scores.append(conf)
-            classes.append(np.argmax(det[5:]))
-    
-    # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, scores, conf_thres, iou_thres)
-    return [boxes[i] for i in indices], [scores[i] for i in indices], [classes[i] for i in indices]
