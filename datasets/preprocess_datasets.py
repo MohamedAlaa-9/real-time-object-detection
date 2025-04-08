@@ -5,6 +5,7 @@ import zipfile
 import numpy as np
 from pathlib import Path
 from urllib.request import urlretrieve
+import random # Import random for seed setting if needed, numpy is already imported
 
 # KITTI Dataset URLs
 KITTI_IMAGE_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip"
@@ -13,7 +14,8 @@ KITTI_CALIB_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_c
 
 
 # Paths
-BASE_DIR = Path("../real-time-object-detection/datasets")
+# Use __file__ to make paths relative to the script's location
+BASE_DIR = Path(__file__).resolve().parent
 RAW_DIR = BASE_DIR / "raw"
 PROCESSED_DIR = BASE_DIR / "processed"
 for dir in [RAW_DIR, PROCESSED_DIR]:
@@ -58,8 +60,19 @@ def preprocess_kitti():
     # Convert KITTI to YOLO format (simplified example)
     kitti_images = RAW_DIR / "kitti/training/image_2"
     kitti_labels = RAW_DIR / "kitti/training/label_2"
-    for img_file in kitti_images.glob("*.png"):
+
+    # Set a seed for reproducible train/val splits
+    np.random.seed(42)
+    print("Using random seed 42 for train/val split.")
+
+    image_files = list(kitti_images.glob("*.png"))
+    print(f"Found {len(image_files)} images to process.")
+
+    for img_file in image_files:
         img = cv2.imread(str(img_file))
+        if img is None:
+            print(f"Warning: Could not read image {img_file}. Skipping.")
+            continue
         h, w = img.shape[:2]
         label_file = kitti_labels / f"{img_file.stem}.txt"
         yolo_labels = []

@@ -1,13 +1,26 @@
+# Core ML & Data Handling
 ultralytics
 torch
-opencv-python
-matplotlib
-pyqt5
-tensorrt
-pycuda
+numpy # Explicitly add numpy
+pandas
+Pillow
+PyYAML # Added dependency for data.yaml handling
+
+# Computer Vision & GUI
+opencv-python-headless # Use headless version unless full GUI features of opencv are needed
+# matplotlib # Uncomment if plotting is actively used outside notebooks
+# pyqt5 # Uncomment if the PyQt5 GUI is actively used
+
+# Monitoring & Experiment Tracking
 prometheus-client
 mlflow
-nuscenes-devkit
-pandas
-openimages
-Pillow
+
+# Dataset Specific (Consider moving to optional dependencies if not always needed)
+# nuscenes-devkit # Uncomment if NuScenes dataset is used
+# openimages # Uncomment if OpenImages dataset is used
+
+# --- System Prerequisites (Install Separately) ---
+# These packages often require specific system configurations (CUDA, cuDNN).
+# Document installation steps in README.md instead of listing here.
+# tensorrt
+# pycuda

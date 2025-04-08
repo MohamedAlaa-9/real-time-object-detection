@@ -1,50 +1,70 @@
 # Real-Time Object Detection for Autonomous Vehicles
 
-This project focuses on building a machine learning model that can detect and classify objects in the environment, such as pedestrians, vehicles, traffic signs, and obstacles. The model will be deployed in autonomous vehicle systems to enhance safety and decision making in real-time driving scenarios.
+This project focuses on building and optimizing a machine learning pipeline for real-time object detection, specifically tailored for autonomous vehicle scenarios using the KITTI dataset and YOLO models. The pipeline includes data preprocessing, model training (YOLOv11), export to ONNX, optimization with TensorRT, and real-time inference capabilities.
+
+**Recent Improvements (April 2025):**
+*   Refactored data preprocessing for robustness and reproducibility.
+*   Enhanced training script with better path handling and MLflow logging.
+*   Optimized TensorRT inference script for performance (memory allocation) and clarity.
+*   Improved ONNX export process with dynamic axes support.
+*   Refined post-processing logic for correct bounding box scaling.
+*   Updated dependency management and documentation.
 
 ## Project Structure
 
 ```
 real-time-object-detection/
 ├── ml-models/                # Model training and optimization
-│   ├── train_yolo.py         # YOLOv11 training script
-│   ├── export_model.py       # Export model to ONNX format
-│   ├── optimize_tensorrt.py  # Optimize ONNX model for TensorRT
-│   └── inference.py          # Real-time inference
-├── gui/                      # GUI for real-time testing
-│   ├── app.py                # Main GUI script
-│   ├── video_stream.py       # Video capture
-│   └── display_results.py    # Detection visualization
-├── datasets/                 # Training datasets (placeholders)
-│   ├── raw/                  # Raw KITTI data (not implemented)
-│   └── processed/            # Preprocessed data (not implemented)
-├── infra/                    # Deployment infrastructure
-│   ├── azure-deploy.yaml     # Azure VM setup
-│   └── monitoring_setup.sh   # Grafana/Prometheus config
-├── docs/                     # Documentation
-│   ├── architecture.md       # System overview
-│   └── ml_pipeline.md        # Training/deployment guide
-└── README.md                 # Project overview
+│   ├── train_yolo.py         # YOLOv11 training script (with MLflow)
+│   ├── export_model.py       # Export trained model to ONNX format
+│   ├── optimize_tensorrt.py  # Optimize ONNX model using TensorRT
+│   ├── inference.py          # Real-time inference using TensorRT engine
+│   ├── yolo11n.pt            # Base pre-trained model (example)
+│   └── best.onnx             # Exported ONNX model (generated)
+│   └── best.trt              # Optimized TensorRT engine (generated)
+├── gui/                      # GUI for real-time testing and visualization
+│   ├── app.py                # Main GUI application script
+│   ├── video_stream.py       # Handles video input (file or camera)
+│   └── display_results.py    # Visualizes detection results on frames
+├── datasets/                 # Dataset handling scripts and configuration
+│   ├── preprocess_datasets.py # Downloads and preprocesses KITTI dataset
+│   ├── data.yaml             # YOLO dataset configuration file (generated)
+│   ├── README.md             # Dataset specific instructions
+│   ├── raw/                  # Raw downloaded data (e.g., KITTI zip files)
+│   └── processed/            # Preprocessed data in YOLO format (train/val splits)
+├── infra/                    # Infrastructure and deployment scripts
+│   ├── azure-deploy.yaml     # Example Azure VM deployment config
+│   ├── monitoring_setup.sh   # Example monitoring setup (Prometheus/Grafana)
+│   └── prometheus.yml        # Example Prometheus configuration
+├── docs/                     # Project documentation
+│   ├── architecture.md       # System architecture overview
+│   └── ml_pipeline.md        # Detailed ML pipeline guide
+├── utils.py                  # Utility functions (e.g., post-processing)
+├── requirements.txt          # Python package dependencies (pip)
+├── Dockerfile                # Docker configuration for containerization
+├── .gitignore                # Git ignore rules
+└── README.md                 # This file
 ```
 
 ## Datasets
 
-*   KITTI
+*   **KITTI:** The primary dataset used. The `datasets/preprocess_datasets.py` script handles downloading and converting KITTI data (images and labels) into the YOLO format required for training. It automatically creates the `datasets/processed/data.yaml` file.
 
-To add new datasets, you need to:
+### Using the KITTI Dataset
 
-1.  Download the dataset.
-2.  Create a new function in `datasets/preprocess_datasets.py` to preprocess the dataset.
-3.  Add the new function to the `if __name__ == "__main__":` block in `datasets/preprocess_datasets.py`.
-4.  Update the `create_data_yaml` function in `datasets/preprocess_datasets.py` to include the new dataset.
-5.  Update the `ml-models/train_yolo.py` file to include the new dataset (if necessary).
-6.  Update the `gui/display_results.py` file to include the new dataset.
+The preprocessing script (`datasets/preprocess_datasets.py`) will automatically download the required KITTI files if they are not found in the `datasets/raw/` directory. The necessary components are:
+*   Left color images (`data_object_image_2.zip`)
+*   Training labels (`data_object_label_2.zip`)
+*   Camera calibration data (`data_object_calib.zip`) - *Note: Calibration data is downloaded but not currently used in the simplified YOLO conversion.*
 
-To use the KITTI dataset, you need to download the following files:
+Simply run `python datasets/preprocess_datasets.py` to initiate the download and preprocessing.
 
-*   Left color images of object data set (12 GB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip
-*   Training labels of object data set (5 MB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_label_2.zip
-*   Camera calibration matrices of object data set (16 MB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_calib.zip
+### Adding New Datasets
+
+While the project is currently focused on KITTI, adding other datasets would involve:
+1.  Placing raw data in a suitable location (e.g., `datasets/raw/new_dataset_name`).
+2.  Modifying or extending `datasets/preprocess_datasets.py` to handle the new dataset's format and convert it to YOLO format (creating train/val splits in `datasets/processed`).
+3.  Ensuring the `datasets/processed/data.yaml` reflects the structure and class names of the combined or new dataset.
 
 ## Key Focus Areas
 
@@ -52,72 +72,60 @@ To use the KITTI dataset, you need to download the following files:
 2.  Transfer Learning: Leveraging pre-trained models (e.g., COCO) for fast adaptation and better performance.
 3.  Environmental Adaptation: Developing a robust system capable of performing well across different driving environments (urban, highways, night, and adverse weather).
 4.  Continuous Monitoring: Using MLOps tools to track model performance, detect drifts, and retrain the system as new data becomes available.
-5.  Safety and Reliability: Ensuring the system operates in a fail-safe manner with robust object detection to ensure the safety of passengers and pedestrians.
+5.  Safety and Reliability: Ensuring the system operates reliably with robust object detection crucial for passenger and pedestrian safety.
+
+## Prerequisites
+
+Before running the project, ensure you have the following installed:
+
+1.  **Python:** Version 3.8 or higher recommended.
+2.  **NVIDIA GPU:** Required for accelerated training and TensorRT inference.
+3.  **NVIDIA Drivers:** Install the appropriate drivers for your GPU.
+4.  **CUDA Toolkit:** Install a version compatible with your drivers and the required libraries (PyTorch, TensorRT).
+5.  **cuDNN:** Install the cuDNN library compatible with your CUDA version.
+6.  **TensorRT:** Download and install NVIDIA TensorRT. Ensure the Python bindings (`python3-libnvinfer`) are installed correctly for your environment. This is often done via Debian packages or Tar archives provided by NVIDIA, not pip.
+7.  **PyCUDA:** Install PyCUDA. This usually requires compilation and needs to match your CUDA toolkit version. Often installed via `pip install pycuda`, but might require environment variables (`CUDA_ROOT`) to be set.
+
+**Note:** TensorRT and PyCUDA installation can be complex and system-dependent. Refer to the official NVIDIA documentation for detailed instructions specific to your OS and CUDA version. These packages are **not** installed by the `requirements.txt` file.
 
 ## Project Running Instructions
 
-1.  Install the required dependencies: `pip install -r requirements.txt`
-2.  Download and preprocess the KITTI dataset: `python datasets/preprocess_datasets.py`
-3.  Train the YOLOv11 model: `python ml-models/train_yolo.py`
-4.  Export the model to ONNX format: `python ml-models/export_model.py`
-5.  Optimize the ONNX model for TensorRT: `python ml-models/optimize_tensorrt.py`
-6.  Run the GUI: `python gui/app.py`
+Follow these steps to set up and run the ML pipeline:
 
-## Running the Project: A Step-by-Step Guide
+1.  **Install Python Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+    This installs the core Python packages listed in `requirements.txt`. Remember to install the prerequisites (CUDA, TensorRT, PyCUDA) separately as described above.
+2.  **Download and Preprocess Dataset:**
+    ```bash
+    python datasets/preprocess_datasets.py
+    ```
+    This script downloads the KITTI dataset (if not present) and converts it into the YOLO format under `datasets/processed/`. It also creates `datasets/processed/data.yaml`.
+3.  **Train the Model:**
+    ```bash
+    python ml-models/train_yolo.py
+    ```
+    This trains the YOLOv11 model using the processed dataset. Training logs and checkpoints are saved under `runs/train/`. MLflow is used for experiment tracking if available. The best model checkpoint (`best.pt`) will be saved in the experiment directory (e.g., `runs/train/yolov11_kitti_exp/weights/best.pt`).
+4.  **Export Trained Model to ONNX:**
+    ```bash
+    python ml-models/export_model.py
+    ```
+    This script loads the `best.pt` checkpoint from the training run and exports it to `ml-models/best.onnx`. It enables dynamic axes for flexibility.
+5.  **Optimize ONNX Model with TensorRT:**
+    ```bash
+    python ml-models/optimize_tensorrt.py
+    ```
+    This takes the `best.onnx` model and builds an optimized TensorRT engine (`ml-models/best.trt`). This step requires TensorRT to be correctly installed (see Prerequisites). The engine is built with FP16 precision if supported by the GPU.
+6.  **Run Real-Time Inference GUI:**
+    ```bash
+    python gui/app.py
+    ```
+    This starts the GUI application, which uses the optimized TensorRT engine (`best.trt`) via `ml-models/inference.py` to perform real-time object detection on a video file or camera stream.
 
-The following instructions provide a detailed guide on how to run the project:
+## Detailed Step-by-Step Guide (Removed)
 
-1.  **Install the required dependencies:** `pip install -r requirements.txt`
-
-    *   This command uses `pip`, the Python package installer, to install all the libraries and dependencies listed in the `requirements.txt` file. This file contains a list of all the necessary Python packages required to run the project, such as `ultralytics`, `torch`, `opencv-python`, etc.
-    *   **Step-by-step explanation:**
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory (where the `requirements.txt` file is located) using the `cd` command.
-        *   Run the command `pip install -r requirements.txt`.
-        *   Wait for the installation to complete. `pip` will download and install all the required packages.
-2.  **Download and preprocess the KITTI dataset:** `python datasets/preprocess_datasets.py`
-
-    *   This command executes the `preprocess_datasets.py` script located in the `datasets` directory. This script downloads the KITTI dataset (if it's not already downloaded) and preprocesses it into a format suitable for training the YOLO model.
-    *   **Step-by-step explanation:**
-        *   Ensure that you have enough disk space to download and store the KITTI dataset (approximately 12 GB for the images and additional space for the labels and calibration files).
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory.
-        *   Run the command `python datasets/preprocess_datasets.py`.
-        *   Wait for the script to complete. It will download the dataset (if necessary), extract the relevant files, and preprocess them.
-3.  **Train the YOLOv11 model:** `python ml-models/train_yolo.py`
-
-    *   This command executes the `train_yolo.py` script located in the `ml-models` directory. This script trains the YOLOv11 model using the preprocessed KITTI dataset.
-    *   **Step-by-step explanation:**
-        *   Ensure that you have a compatible GPU and the necessary drivers installed if you want to train the model on a GPU. Otherwise, the training will be performed on the CPU, which can be significantly slower.
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory.
-        *   Run the command `python ml-models/train_yolo.py`.
-        *   Wait for the training to complete. The training time can vary depending on the hardware and the training parameters.
-4.  **Export the model to ONNX format:** `python ml-models/export_model.py`
-
-    *   This command executes the `export_model.py` script located in the `ml-models` directory. This script exports the trained YOLOv11 model to the ONNX (Open Neural Network Exchange) format, which is a standard format for representing machine learning models.
-    *   **Step-by-step explanation:**
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory.
-        *   Run the command `python ml-models/export_model.py`.
-        *   Wait for the script to complete.
-5.  **Optimize the ONNX model for TensorRT:** `python ml-models/optimize_tensorrt.py`
-
-    *   This command executes the `optimize_tensorrt.py` script located in the `ml-models` directory. This script optimizes the ONNX model for TensorRT, which is a high-performance inference engine developed by NVIDIA.
-    *   **Step-by-step explanation:**
-        *   Ensure that you have TensorRT installed and configured correctly. This requires NVIDIA GPU drivers and the CUDA Toolkit.
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory.
-        *   Run the command `python ml-models/optimize_tensorrt.py`.
-        *   Wait for the script to complete.
-6.  **Run the GUI:** `python gui/app.py`
-
-    *   This command executes the `app.py` script located in the `gui` directory. This script starts the GUI, which allows you to test the real-time object detection model using a video stream.
-    *   **Step-by-step explanation:**
-        *   Open a terminal or command prompt.
-        *   Navigate to the project's root directory.
-        *   Run the command `python gui/app.py`.
-        *   The GUI should appear, and you can start testing the model.
+*The previous detailed step-by-step guide has been integrated into the concise "Project Running Instructions" above.*
 
 ## Deployment
 
