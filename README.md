@@ -53,6 +53,12 @@ To use the nuScenes dataset, you need to:
 2.  Extract the dataset to the `datasets/raw` directory.
 3.  Run the `datasets/preprocess_datasets.py` script to preprocess the dataset.
 
+To use the KITTI dataset, you need to download the following files from the KITTI dataset website:
+
+*   Left color images of object data set (12 GB)
+*   Training labels of object data set (5 MB)
+*   Camera calibration matrices of object data set (16 MB)
+
 ## Key Focus Areas
 
 1.  Real-Time Detection: Ensuring that the system can accurately detect and classify objects in real time, necessary for autonomous vehicle operation.
