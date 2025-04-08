@@ -97,8 +97,12 @@ def preprocess_kitti():
 
 # Data config for YOLO
 def create_data_yaml():
+    # Use absolute path for robustness
+    absolute_processed_path = str(PROCESSED_DIR.resolve())
+    print(f"Using absolute path in data.yaml: {absolute_processed_path}")
+
     data_yaml = {
-        "path": "../datasets/processed",
+        "path": absolute_processed_path, # Use absolute path
         "train": "train/images",
         "val": "val/images",
         "names": ["pedestrian", "car", "cyclist"]

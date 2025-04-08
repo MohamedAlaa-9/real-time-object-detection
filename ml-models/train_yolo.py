@@ -1,56 +1,82 @@
 from ultralytics import YOLO
 import torch
 import mlflow
+import yaml # Added for YAML loading
 import os
 from pathlib import Path
 
-# Define base directory relative to this script
-BASE_DIR = Path(__file__).resolve().parent
+# Define project root directory (assuming script is in ml-models/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Load YOLOv11 model
-# Consider making the model path configurable or using different variants (s, m, l, x)
-model_path = BASE_DIR / 'yolo11n.pt'
-if not model_path.exists():
-    print(f"Error: Model file not found at {model_path}")
-    # Potentially download a default model if not found
+# --- Configuration Loading ---
+CONFIG_PATH = PROJECT_ROOT / "config/train_config.yaml"
+
+if not CONFIG_PATH.exists():
+    print(f"Error: Configuration file not found at {CONFIG_PATH}")
     exit()
-model = YOLO(str(model_path))
 
-# Training configuration with augmentation
-# Consider using a config file (e.g., YAML) for hyperparameters
-# For hyperparameter optimization, consider tools like Ray Tune or Optuna
-data_yaml_path = BASE_DIR.parent / "datasets/processed/data.yaml"
-training_args = {
-    "data": str(data_yaml_path),
-    "epochs": 100, # Consider adjusting epochs based on convergence
-    "imgsz": 640,
-    "batch": 16,
-    "device": 0 if torch.cuda.is_available() else "cpu",
-    "project": "runs/train",
-    "name": "yolov11_kitti_exp",
-    "augment": True,  # Enable built-in augmentation
-    "mosaic": 1.0,    # Mosaic augmentation
-    "mixup": 0.5,     # Mixup augmentation
-    "hsv_h": 0.015,   # Hue augmentation for diverse lighting
-    "hsv_s": 0.7,     # Saturation
-    "hsv_v": 0.4,     # Value
-    # Add other relevant hyperparameters like 'patience' for early stopping
-    "patience": 20,
-}
+with open(CONFIG_PATH, 'r') as f:
+    try:
+        config = yaml.safe_load(f)
+        print("Loaded training configuration:")
+        print(yaml.dump(config, indent=2))
+    except yaml.YAMLError as e:
+        print(f"Error parsing configuration file: {e}")
+        exit()
 
-# Validate dataset path
+# Construct absolute paths from config (relative paths are assumed relative to project root)
+base_model_path = PROJECT_ROOT / config['base_model']
+data_yaml_path = PROJECT_ROOT / config['data_yaml']
+
+# Validate paths
+if not base_model_path.exists():
+    print(f"Error: Base model file not found at {base_model_path}")
+    # Potentially add logic to download a default model if needed
+    exit()
+
 if not data_yaml_path.exists():
     print(f"Error: data.yaml file not found at {data_yaml_path}")
-    print("Please run datasets/preprocess_datasets.py first.")
+    print("Ensure the dataset exists. You might need to run datasets/preprocess_datasets.py first.")
     exit()
 
-# Train with MLflow logging
-print("Starting training...")
+# --- Model Initialization ---
+model = YOLO(str(base_model_path))
+
+# --- Training Arguments from Config ---
+# Select relevant keys from config for model.train()
+train_keys = [
+    "epochs", "imgsz", "batch", "device", "project", "name",
+    "augment", "mosaic", "mixup", "hsv_h", "hsv_s", "hsv_v", "patience"
+]
+training_args = {k: config[k] for k in train_keys if k in config}
+
+# Add the essential 'data' argument
+training_args["data"] = str(data_yaml_path)
+
+# Handle device selection more robustly
+if str(training_args.get("device", "cpu")).lower() != "cpu":
+    if not torch.cuda.is_available():
+        print(f"Warning: CUDA device '{training_args['device']}' requested but CUDA not available. Using CPU.")
+        training_args["device"] = "cpu"
+    else:
+        # Ensure the specified GPU index is valid if needed (YOLO handles basic '0', '0,1' etc.)
+        pass # YOLO internal handling is usually sufficient
+else:
+     training_args["device"] = "cpu"
+
+
+# --- Training with MLflow ---
+print("Starting training with loaded configuration...")
+# Ensure MLflow tracking URI is set if not using local default
+# os.environ['MLFLOW_TRACKING_URI'] = 'http://your_mlflow_server:5000' # Example
+
 with mlflow.start_run() as run:
     print(f"MLflow Run ID: {run.info.run_id}")
-    mlflow.log_params(training_args)
+    # Log the loaded configuration parameters
+    mlflow.log_params(config) # Log the entire config dict
 
     # The train method returns a results object
+    print(f"Training arguments passed to YOLO: {training_args}")
     results = model.train(**training_args)
 
     # Log metrics (ultralytics automatically logs to MLflow if installed)
