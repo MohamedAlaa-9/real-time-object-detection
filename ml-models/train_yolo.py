@@ -3,7 +3,7 @@ import torch
 import mlflow
 
 # Load YOLOv11 model
-model = YOLO('yolov11n.pt')  # Start with nano, upgrade to larger variants if needed
+model = YOLO('ml-models/yolo11n.pt')  # Start with nano, upgrade to larger variants if needed
 
 # Training configuration with augmentation
 data_yaml = "../datasets/processed/data.yaml"
