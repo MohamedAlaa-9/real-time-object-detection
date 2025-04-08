@@ -3,8 +3,8 @@ from ml_models.inference import infer
 
 def display_detections(frame):
     boxes, scores, classes = infer(frame)
-    class_names = ["pedestrian", "vehicle", "traffic_sign", "obstacle"]
-    colors = [(0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 0)]
+    class_names = ["pedestrian", "vehicle"]
+    colors = [(0, 255, 0), (0, 0, 255)]
     
     for box, score, cls in zip(boxes, scores, classes):
         x_min, y_min, x_max, y_max = box

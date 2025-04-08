@@ -30,8 +30,15 @@ real-time-object-detection/
 ## Datasets
 
 *   KITTI
-*   nuScenes
-*   Open Images
+
+To add new datasets, you need to:
+
+1.  Download the dataset.
+2.  Create a new function in `datasets/preprocess_datasets.py` to preprocess the dataset.
+3.  Add the new function to the `if __name__ == "__main__":` block in `datasets/preprocess_datasets.py`.
+4.  Update the `create_data_yaml` function in `datasets/preprocess_datasets.py` to include the new dataset.
+5.  Update the `ml-models/train_yolo.py` file to include the new dataset.
+6.  Update the `gui/display_results.py` file to include the new dataset.
 
 ## Key Focus Areas
 
@@ -40,3 +47,11 @@ real-time-object-detection/
 3.  Environmental Adaptation: Developing a robust system capable of performing well across different driving environments (urban, highways, night, and adverse weather).
 4.  Continuous Monitoring: Using MLOps tools to track model performance, detect drifts, and retrain the system as new data becomes available.
 5.  Safety and Reliability: Ensuring the system operates in a fail-safe manner with robust object detection to ensure the safety of passengers and pedestrians.
+
+## Project Running Instructions
+
+1.  Install the required dependencies: `pip install -r requirements.txt`
+2.  Download and preprocess the KITTI dataset: `python datasets/preprocess_datasets.py`
+3.  Train the YOLOv11 model: `python ml-models/train_yolo.py`
+4.  Export and optimize the model: `python ml-models/export_model.py` and `python ml-models/optimize_tensorrt.py`
+5.  Run the GUI: `python gui/app.py`
