@@ -6,6 +6,7 @@ __pycache__/
 # 🚀 General System Files
 .DS_Store
 Thumbs.db
+Project-instructions.md
 
 # 🖥️ Virtual Environment & Python Cache
 venv/
@@ -14,15 +15,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# 📦 Backend Dependencies
-backend/.venv/
-backend/__pycache__/
-backend/logs/
-
-# 🎨 Frontend Dependencies
-frontend/node_modules/
-frontend/.next/
-frontend/dist/
 
 # 🤖 Machine Learning Artifacts
 ml-models/__pycache__/
@@ -39,8 +31,6 @@ datasets/*.tgz
 
 # 🔑 Environment Variables & Secrets
 .env
-backend/.env
-frontend/.env
 infra/.env
 
 # 🛠 DevOps & Cloud Deployment Files
