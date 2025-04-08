@@ -1,6 +1,7 @@
 ultralytics
 torch
 opencv-python
+matplotlib
 pyqt5
 tensorrt
 pycuda

@@ -1,0 +1,4 @@
+path: /teamspace/studios/this_studio/real-time-object-detection/datasets/processed
+train: train/images
+val: val/images
+names: ["pedestrian", "car", "cyclist"]
