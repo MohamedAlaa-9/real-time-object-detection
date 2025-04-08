@@ -10,3 +10,4 @@ mlflow
 nuscenes-devkit
 pandas
 openimages
+Pillow
