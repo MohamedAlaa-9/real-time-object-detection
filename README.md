@@ -40,19 +40,6 @@ To add new datasets, you need to:
 5.  Update the `ml-models/train_yolo.py` file to include the new dataset (if necessary).
 6.  Update the `gui/display_results.py` file to include the new dataset.
 
-### Datasets
-
-*   KITTI
-*   nuScenes (mini version)
-
-### Using nuScenes dataset
-
-To use the nuScenes dataset, you need to:
-
-1.  Download the nuScenes dataset (mini version).
-2.  Extract the dataset to the `datasets/raw` directory.
-3.  Run the `datasets/preprocess_datasets.py` script to preprocess the dataset.
-
 To use the KITTI dataset, you need to download the following files:
 
 *   Left color images of object data set (12 GB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip
