@@ -6,6 +6,12 @@ import numpy as np
 from pathlib import Path
 from urllib.request import urlretrieve
 
+# KITTI Dataset URLs
+KITTI_IMAGE_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip"
+KITTI_LABEL_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_label_2.zip"
+KITTI_CALIB_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_calib.zip"
+
+
 # Paths
 BASE_DIR = Path("../datasets")
 RAW_DIR = BASE_DIR / "raw"
@@ -15,12 +21,26 @@ for dir in [RAW_DIR, PROCESSED_DIR]:
 
 # Download and preprocess KITTI
 def preprocess_kitti():
-    kitti_url = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2/KITTI_object.zip"  # Actual URL
-    kitti_path = RAW_DIR / "kitti.zip"
-    if not kitti_path.exists():
-        print("Downloading KITTI dataset...")
-        urlretrieve(kitti_url, kitti_path)
-        with zipfile.ZipFile(kitti_path, 'r') as zip_ref:
+    kitti_image_path = RAW_DIR / "kitti_image.zip"
+    kitti_label_path = RAW_DIR / "kitti_label.zip"
+    kitti_calib_path = RAW_DIR / "kitti_calib.zip"
+
+    if not kitti_image_path.exists():
+        print("Downloading KITTI image data...")
+        urlretrieve(KITTI_IMAGE_URL, kitti_image_path)
+        with zipfile.ZipFile(kitti_image_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
+
+    if not kitti_label_path.exists():
+        print("Downloading KITTI label data...")
+        urlretrieve(KITTI_LABEL_URL, kitti_label_path)
+        with zipfile.ZipFile(kitti_label_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
+
+    if not kitti_calib_path.exists():
+        print("Downloading KITTI calibration data...")
+        urlretrieve(KITTI_CALIB_URL, kitti_calib_path)
+        with zipfile.ZipFile(kitti_calib_path, 'r') as zip_ref:
             zip_ref.extractall(RAW_DIR / 'kitti')
     
     # Convert KITTI to YOLO format (simplified example)

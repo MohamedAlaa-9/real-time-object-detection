@@ -53,11 +53,11 @@ To use the nuScenes dataset, you need to:
 2.  Extract the dataset to the `datasets/raw` directory.
 3.  Run the `datasets/preprocess_datasets.py` script to preprocess the dataset.
 
-To use the KITTI dataset, you need to download the following files from the KITTI dataset website:
+To use the KITTI dataset, you need to download the following files:
 
-*   Left color images of object data set (12 GB)
-*   Training labels of object data set (5 MB)
-*   Camera calibration matrices of object data set (16 MB)
+*   Left color images of object data set (12 GB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip
+*   Training labels of object data set (5 MB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_label_2.zip
+*   Camera calibration matrices of object data set (16 MB): https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_calib.zip
 
 ## Key Focus Areas
 
