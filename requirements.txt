@@ -1,25 +1,11 @@
-# 🚀 Web Framework (Backend)
-fastapi
-uvicorn[standard]
-
-# 📦 Database (MongoDB)
-pymongo
-motor  # Async MongoDB driver
-
-# ⚙️ Machine Learning & Inference
+ultralytics
 torch
-torchvision
-ultralytics  # YOLOv8 for Object Detection
-numpy
 opencv-python
-pandas
-tqdm
-scipy
-
-# 📈 MLOps & Monitoring
+pyqt5
+tensorrt
+pycuda
+prometheus-client
 mlflow
-loguru
-
-# 🛠 Utilities
-python-dotenv  # Load environment variables from .env
-requests  # API calls handling
+nuscenes-devkit
+pandas
+openimages
