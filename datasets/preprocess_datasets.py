@@ -13,7 +13,7 @@ KITTI_CALIB_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_c
 
 
 # Paths
-BASE_DIR = Path("../datasets")
+BASE_DIR = Path("../real-time-object-detection/datasets")
 RAW_DIR = BASE_DIR / "raw"
 PROCESSED_DIR = BASE_DIR / "processed"
 for dir in [RAW_DIR, PROCESSED_DIR]:
