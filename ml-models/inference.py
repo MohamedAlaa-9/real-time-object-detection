@@ -1,10 +1,11 @@
 import cv2
 import numpy as np
 import tensorrt as trt
+from datasets.data_ingestion import ingest_video
 import pycuda.driver as cuda
-import pycuda.autoinit # Note: autoinit initializes CUDA context, might be better to manage explicitly
+import pycuda.autoinit  # Note: autoinit initializes CUDA context, might be better to manage explicitly
 from prometheus_client import Counter, Histogram, start_http_server
-from utils import post_process_yolo # Assuming this handles NMS correctly
+from utils import post_process_yolo  # Assuming this handles NMS correctly
 from pathlib import Path
 import logging
 
@@ -28,10 +29,9 @@ try:
 except OSError as e:
     logger.warning(f"Could not start Prometheus server on port 8000: {e}. Metrics may not be available.")
 
-
 # Define paths relative to the script
 BASE_DIR = Path(__file__).resolve().parent
-ENGINE_PATH = BASE_DIR / 'best.trt' # Make path relative
+ENGINE_PATH = BASE_DIR / 'best.trt'  # Make path relative
 
 # Validate engine path
 if not ENGINE_PATH.exists():
@@ -62,9 +62,9 @@ except Exception as e:
 # Allocate buffers for input and output (do this once)
 inputs, outputs, bindings, stream = [], [], [], cuda.Stream()
 input_shape = None
-output_shape = None # Shape needs adjustment based on model
-num_classes = 3 # KITTI classes: pedestrian, car, cyclist
-output_components = num_classes + 5 # x, y, w, h, conf + num_classes
+output_shape = None  # Shape needs adjustment based on model
+num_classes = 3  # KITTI classes: pedestrian, car, cyclist
+output_components = num_classes + 5  # x, y, w, h, conf + num_classes
 
 logger.info("Allocating CUDA memory buffers...")
 try:
@@ -73,12 +73,12 @@ try:
         shape = engine.get_binding_shape(binding)
         # Handle dynamic shapes if necessary, assuming fixed shape here
         if -1 in shape:
-             # Example: Set a max batch size if dynamic
-             # shape = (engine.max_batch_size, *shape[1:]) # Adjust as needed
-             logger.warning(f"Binding {binding} has dynamic shape {shape}. Using context shape.")
-             shape = context.get_binding_shape(binding_idx) # Get shape from context for dynamic
+            # Example: Set a max batch size if dynamic
+            # shape = (engine.max_batch_size, *shape[1:]) # Adjust as needed
+            logger.warning(f"Binding {binding} has dynamic shape {shape}. Using context shape.")
+            shape = context.get_binding_shape(binding_idx)  # Get shape from context for dynamic
 
-        size = trt.volume(shape) * engine.max_batch_size # Use max_batch_size or 1 if batching not used
+        size = trt.volume(shape) * engine.max_batch_size  # Use max_batch_size or 1 if batching not used
         dtype = trt.nptype(engine.get_binding_dtype(binding))
         # Allocate host and device buffers
         host_mem = cuda.pagelocked_empty(size, dtype)
@@ -88,25 +88,25 @@ try:
         # Append to the appropriate list.
         if engine.binding_is_input(binding):
             inputs.append({'host': host_mem, 'device': device_mem})
-            input_shape = shape # Store input shape
-            logger.info(f"Allocated input buffer '{binding}': shape={shape}, size={size}, dtype={dtype}")
+            input_shape = shape  # Store input shape
+            logger.info(f"Allocated input buffer '{{binding}}': shape={{shape}}, size={{size}}, dtype={{dtype}}")
         else:
             outputs.append({'host': host_mem, 'device': device_mem})
-            output_shape = shape # Store output shape
-            logger.info(f"Allocated output buffer '{binding}': shape={shape}, size={size}, dtype={dtype}")
+            output_shape = shape  # Store output shape
+            logger.info(f"Allocated output buffer '{{binding}}': shape={{shape}}, size={{size}}, dtype={{dtype}}")
 
     if not inputs or not outputs:
         raise RuntimeError("Failed to allocate input/output buffers.")
     logger.info("CUDA memory buffers allocated successfully.")
 
     # Assuming first input and first output for simplicity
-    input_h, input_w = input_shape[-2:] # Assuming HWC or CHW format, get H, W
+    input_h, input_w = input_shape[-2:]  # Assuming HWC or CHW format, get H, W
     # Example output shape: (batch_size, num_boxes, num_classes + 5) -> e.g., (1, 8400, 8) for 3 classes
     # Need to confirm the exact output shape from the model export/optimization step
     # Let's assume the output shape is (1, num_predictions, output_components)
     # We will reshape later based on actual output
-    logger.info(f"Model expected input shape (H, W): ({input_h}, {input_w})")
-    logger.info(f"Model raw output shape: {output_shape}")
+    logger.info(f"Model expected input shape (H, W): ({{input_h}}, {{input_w}})")
+    logger.info(f"Model raw output shape: {{output_shape}}")
 
 
 except Exception as e:
@@ -114,69 +114,81 @@ except Exception as e:
     exit()
 
 
-# --- Inference Function ---
-def infer(frame: np.ndarray):
+def infer(video_path):
     """
-    Performs inference on a single frame using the initialized TensorRT engine.
+    Performs inference on a video using the initialized TensorRT engine.
 
     Args:
-        frame: Input image frame (NumPy array, BGR format).
+        video_path: Path to the video file.
 
     Returns:
-        Tuple containing (boxes, scores, classes) or (None, None, None) on error.
+        None
     """
-    if frame is None:
-        logger.warning("Received None frame, skipping inference.")
-        return None, None, None
-
-    # --- Preprocessing ---
     try:
-        with PREPROCESS_TIME.time():
-            # Resize and normalize (ensure this matches training)
-            input_image = cv2.resize(frame, (input_w, input_h))
-            # Transpose HWC -> CHW and normalize (0-1)
-            input_image = input_image.transpose((2, 0, 1)).astype(np.float32) / 255.0
-            # Add batch dimension (if model expects batch) -> NCHW
-            input_image = np.expand_dims(input_image, axis=0)
-            # Flatten and copy to host buffer
-            np.copyto(inputs[0]['host'], input_image.ravel())
+        frame_generator = ingest_video(video_path)
+        for frame in frame_generator:
+            if frame is None:
+                logger.warning("Received None frame, skipping inference.")
+                continue
+
+            # --- Preprocessing ---
+            try:
+                with PREPROCESS_TIME.time():
+                    # Resize and normalize (ensure this matches training)
+                    input_image = cv2.resize(frame, (input_w, input_h))
+                    # Transpose HWC -> CHW and normalize (0-1)
+                    input_image = input_image.transpose((2, 0, 1)).astype(np.float32) / 255.0
+                    # Add batch dimension (if model expects batch) -> NCHW
+                    input_image = np.expand_dims(input_image, axis=0)
+                    # Flatten and copy to host buffer
+                    np.copyto(inputs[0]['host'], input_image.ravel())
+            except Exception as e:
+                logger.error(f"Error during preprocessing: {e}")
+                continue
+
+            # --- Inference ---
+            try:
+                with INFERENCE_TIME.time():
+                    # Transfer input data to the GPU.
+                    cuda.memcpy_htod_async(inputs[0]['device'], inputs[0]['host'], stream)
+                    # Run inference.
+                    context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+                    # Transfer predictions back from the GPU.
+                    cuda.memcpy_dtoh_async(outputs[0]['host'], outputs[0]['device'], stream)
+                    # Synchronize the stream
+                    stream.synchronize()
+            except Exception as e:
+                logger.error(f"Error during TensorRT execution: {e}")
+                continue
+
+            # --- Post-processing ---
+            try:
+                with POSTPROCESS_TIME.time():
+                    # Reshape the raw output based on the known output shape
+                    # Example: output shape might be (1, num_predictions, num_classes + 5)
+                    # Adjust the reshape based on the actual model output structure
+                    raw_output = outputs[0]['host'].reshape(engine.max_batch_size, -1, output_components)  # Adjust shape as needed
+
+                    # Assuming post_process_yolo handles NMS and returns filtered results
+                    # Pass the first batch's output, original frame dimensions for scaling
+                    original_h, original_w = frame.shape[:2]
+                    boxes, scores, classes = post_process_yolo(raw_output[0], input_w, input_h, original_w, original_h)  # Pass original dims
+
+                INFERENCE_COUNT.inc()
+                # Do something with the results (e.g., display them)
+                if boxes is not None:
+                    logger.info(f"Inference successful. Found {len(boxes)} objects.")
+                    # print("Boxes:", boxes)
+                    # print("Scores:", scores)
+                    # print("Classes:", classes)
+            except Exception as e:
+                logger.error(f"Error during post-processing: {e}")
+                continue
+
+    except FileNotFoundError as e:
+        logger.error(e)
     except Exception as e:
-        logger.error(f"Error during preprocessing: {e}")
-        return None, None, None
-
-    # --- Inference ---
-    try:
-        with INFERENCE_TIME.time():
-            # Transfer input data to the GPU.
-            cuda.memcpy_htod_async(inputs[0]['device'], inputs[0]['host'], stream)
-            # Run inference.
-            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
-            # Transfer predictions back from the GPU.
-            cuda.memcpy_dtoh_async(outputs[0]['host'], outputs[0]['device'], stream)
-            # Synchronize the stream
-            stream.synchronize()
-    except Exception as e:
-        logger.error(f"Error during TensorRT execution: {e}")
-        return None, None, None
-
-    # --- Post-processing ---
-    try:
-        with POSTPROCESS_TIME.time():
-            # Reshape the raw output based on the known output shape
-            # Example: output shape might be (1, num_predictions, num_classes + 5)
-            # Adjust the reshape based on the actual model output structure
-            raw_output = outputs[0]['host'].reshape(engine.max_batch_size, -1, output_components) # Adjust shape as needed
-
-            # Assuming post_process_yolo handles NMS and returns filtered results
-            # Pass the first batch's output, original frame dimensions for scaling
-            original_h, original_w = frame.shape[:2]
-            boxes, scores, classes = post_process_yolo(raw_output[0], input_w, input_h, original_w, original_h) # Pass original dims
-
-        INFERENCE_COUNT.inc()
-        return boxes, scores, classes
-    except Exception as e:
-        logger.error(f"Error during post-processing: {e}")
-        return None, None, None
+        logger.error(e)
 
 # --- Cleanup (Optional but good practice) ---
 # Consider adding a cleanup function to release CUDA resources if the script runs long
