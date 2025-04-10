@@ -114,81 +114,81 @@ except Exception as e:
     exit()
 
 
-def infer(video_path):
+def infer(frame: np.ndarray):
     """
-    Performs inference on a video using the initialized TensorRT engine.
+    Performs inference on a single frame using the initialized TensorRT engine.
 
     Args:
-        video_path: Path to the video file.
+        frame: The input image frame (NumPy array BGR).
 
     Returns:
-        None
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Bounding boxes, scores, and class indices.
+                                                  Returns empty arrays if no detections.
     """
+    boxes, scores, classes = np.array([]), np.array([]), np.array([]) # Default empty return
+
+    if frame is None:
+        logger.warning("Received None frame, skipping inference.")
+        return boxes, scores, classes
+
+    # --- Preprocessing ---
     try:
-        frame_generator = ingest_video(video_path)
-        for frame in frame_generator:
-            if frame is None:
-                logger.warning("Received None frame, skipping inference.")
-                continue
-
-            # --- Preprocessing ---
-            try:
-                with PREPROCESS_TIME.time():
-                    # Resize and normalize (ensure this matches training)
-                    input_image = cv2.resize(frame, (input_w, input_h))
-                    # Transpose HWC -> CHW and normalize (0-1)
-                    input_image = input_image.transpose((2, 0, 1)).astype(np.float32) / 255.0
-                    # Add batch dimension (if model expects batch) -> NCHW
-                    input_image = np.expand_dims(input_image, axis=0)
-                    # Flatten and copy to host buffer
-                    np.copyto(inputs[0]['host'], input_image.ravel())
-            except Exception as e:
-                logger.error(f"Error during preprocessing: {e}")
-                continue
-
-            # --- Inference ---
-            try:
-                with INFERENCE_TIME.time():
-                    # Transfer input data to the GPU.
-                    cuda.memcpy_htod_async(inputs[0]['device'], inputs[0]['host'], stream)
-                    # Run inference.
-                    context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
-                    # Transfer predictions back from the GPU.
-                    cuda.memcpy_dtoh_async(outputs[0]['host'], outputs[0]['device'], stream)
-                    # Synchronize the stream
-                    stream.synchronize()
-            except Exception as e:
-                logger.error(f"Error during TensorRT execution: {e}")
-                continue
-
-            # --- Post-processing ---
-            try:
-                with POSTPROCESS_TIME.time():
-                    # Reshape the raw output based on the known output shape
-                    # Example: output shape might be (1, num_predictions, num_classes + 5)
-                    # Adjust the reshape based on the actual model output structure
-                    raw_output = outputs[0]['host'].reshape(engine.max_batch_size, -1, output_components)  # Adjust shape as needed
-
-                    # Assuming post_process_yolo handles NMS and returns filtered results
-                    # Pass the first batch's output, original frame dimensions for scaling
-                    original_h, original_w = frame.shape[:2]
-                    boxes, scores, classes = post_process_yolo(raw_output[0], input_w, input_h, original_w, original_h)  # Pass original dims
-
-                INFERENCE_COUNT.inc()
-                # Do something with the results (e.g., display them)
-                if boxes is not None:
-                    logger.info(f"Inference successful. Found {len(boxes)} objects.")
-                    # print("Boxes:", boxes)
-                    # print("Scores:", scores)
-                    # print("Classes:", classes)
-            except Exception as e:
-                logger.error(f"Error during post-processing: {e}")
-                continue
-
-    except FileNotFoundError as e:
-        logger.error(e)
+        with PREPROCESS_TIME.time():
+            # Resize and normalize (ensure this matches training)
+            input_image = cv2.resize(frame, (input_w, input_h))
+            # Transpose HWC -> CHW and normalize (0-1)
+            input_image = input_image.transpose((2, 0, 1)).astype(np.float32) / 255.0
+            # Add batch dimension (if model expects batch) -> NCHW
+            input_image = np.expand_dims(input_image, axis=0)
+            # Flatten and copy to host buffer
+            np.copyto(inputs[0]['host'], input_image.ravel())
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Error during preprocessing: {e}")
+        return boxes, scores, classes # Return empty on error
+
+    # --- Inference ---
+    try:
+        with INFERENCE_TIME.time():
+            # Transfer input data to the GPU.
+            cuda.memcpy_htod_async(inputs[0]['device'], inputs[0]['host'], stream)
+            # Run inference.
+            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+            # Transfer predictions back from the GPU.
+            cuda.memcpy_dtoh_async(outputs[0]['host'], outputs[0]['device'], stream)
+            # Synchronize the stream
+            stream.synchronize()
+    except Exception as e:
+        logger.error(f"Error during TensorRT execution: {e}")
+        return boxes, scores, classes # Return empty on error
+
+    # --- Post-processing ---
+    try:
+        with POSTPROCESS_TIME.time():
+            # Reshape the raw output based on the known output shape
+            # Example: output shape might be (1, num_predictions, num_classes + 5)
+            # Adjust the reshape based on the actual model output structure
+            raw_output = outputs[0]['host'].reshape(engine.max_batch_size, -1, output_components)  # Adjust shape as needed
+
+            # Assuming post_process_yolo handles NMS and returns filtered results
+            # Pass the first batch's output, original frame dimensions for scaling
+            original_h, original_w = frame.shape[:2]
+            processed_boxes, processed_scores, processed_classes = post_process_yolo(raw_output[0], input_w, input_h, original_w, original_h) # Pass original dims
+
+            # Ensure results are not None before assigning
+            if processed_boxes is not None and processed_scores is not None and processed_classes is not None:
+                boxes, scores, classes = processed_boxes, processed_scores, processed_classes
+                logger.info(f"Inference successful. Found {len(boxes)} objects.")
+            else:
+                 logger.info("Inference successful. No objects detected.")
+                 # Keep boxes, scores, classes as empty arrays initialized earlier
+
+        INFERENCE_COUNT.inc()
+
+    except Exception as e:
+        logger.error(f"Error during post-processing: {e}")
+        # Return empty arrays on error
+
+    return boxes, scores, classes
 
 # --- Cleanup (Optional but good practice) ---
 # Consider adding a cleanup function to release CUDA resources if the script runs long
@@ -209,16 +209,19 @@ def infer(video_path):
 
 logger.info("Inference engine initialization complete. Ready for inference.")
 
-# Example Usage (Optional - for testing)
+# Example Usage (Optional - for testing the modified function)
 # if __name__ == "__main__":
 #     # Create a dummy frame
-#     dummy_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+#     dummy_frame = np.zeros((720, 1280, 3), dtype=np.uint8) # Example size
+#     cv2.imwrite("dummy_frame_input.png", dummy_frame) # Save for inspection
 #     logger.info("Running test inference on dummy frame...")
-#     boxes, scores, classes = infer(dummy_frame)
-#     if boxes is not None:
-#         logger.info(f"Inference successful. Found {len(boxes)} objects.")
-#         # print("Boxes:", boxes)
-#         # print("Scores:", scores)
-#         # print("Classes:", classes)
-#     else:
-#         logger.error("Test inference failed.")
+#     test_boxes, test_scores, test_classes = infer(dummy_frame)
+#     if test_boxes.size > 0: # Check if the array is not empty
+#         logger.info(f"Test inference successful. Found {len(test_boxes)} objects.")
+#         # print("Boxes:", test_boxes)
+#         # print("Scores:", test_scores)
+#         # print("Classes:", test_classes)
+#     elif test_boxes is not None: # Check if it's an empty array (no detections)
+#         logger.info("Test inference successful. No objects detected.")
+#     else: # Should not happen with current logic, but good to check
+#         logger.error("Test inference failed or returned None unexpectedly.")
