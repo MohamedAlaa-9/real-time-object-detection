@@ -3,31 +3,49 @@ from ultralytics import YOLO
 from pathlib import Path
 import logging
 import sys
+import yaml # Added for YAML loading
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Define base directory relative to this script
-BASE_DIR = Path(__file__).resolve().parent
+# Define project root directory (assuming script is in ml-models/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# --- Configuration ---
-# Path to the trained PyTorch model (saved by train_yolo.py)
-# Assumes the best model from the latest training run is used.
-# Consider making this path configurable if multiple models exist.
-trained_model_path = BASE_DIR.parent / 'runs/train/yolov11_kitti_exp/weights/best.pt' # More specific path
-# Fallback if the specific run path doesn't exist (less ideal)
-if not trained_model_path.exists():
-    trained_model_path = BASE_DIR / 'best.pt' 
+# --- Configuration Loading ---
+CONFIG_PATH = PROJECT_ROOT / "config/train_config.yaml"
 
-# Output ONNX file path
-onnx_output_path = BASE_DIR / 'best.onnx'
+if not CONFIG_PATH.exists():
+    logger.error(f"Configuration file not found at {CONFIG_PATH}")
+    sys.exit(1)
 
-# Export settings
-input_size = [640, 640] # Height, Width
-opset_version = 12 # Recommended opset for compatibility
-enable_dynamic_axes = True # Allow dynamic batch size/input size in ONNX/TRT
-simplify_onnx = True # Use onnx-simplifier
+logger.info(f"Loading configuration from: {CONFIG_PATH}")
+with open(CONFIG_PATH, 'r') as f:
+    try:
+        config = yaml.safe_load(f)
+        if 'export' not in config:
+            logger.error("Missing 'export' section in configuration file.")
+            sys.exit(1)
+        export_config = config['export']
+        logger.info("Loaded export configuration:")
+        logger.info(yaml.dump(export_config, indent=2))
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing configuration file: {e}")
+        sys.exit(1)
+
+# --- Extract Configuration Values ---
+# Construct absolute paths from config (relative paths are assumed relative to project root)
+trained_model_path = PROJECT_ROOT / export_config['trained_model_path']
+onnx_output_path = PROJECT_ROOT / export_config['onnx_output_path']
+
+# Ensure the output directory exists
+onnx_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+# Export settings from config
+input_size = [export_config['input_height'], export_config['input_width']]
+opset_version = export_config['opset_version']
+enable_dynamic_axes = export_config['enable_dynamic_axes']
+simplify_onnx = export_config['simplify_onnx']
 
 # --- Validation ---
 if not trained_model_path.exists():

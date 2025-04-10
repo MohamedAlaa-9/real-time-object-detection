@@ -3,11 +3,15 @@ import yaml
 from ml_models.inference import infer
 from pathlib import Path
 
+# Define project root directory (assuming script is in gui/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 def display_detections(frame):
     boxes, scores, classes = infer(frame)
     
     # Load class names from data.yaml
-    with open(Path("../datasets/processed/data.yaml"), "r") as f:
+    data_yaml_path = PROJECT_ROOT / "datasets/processed/data.yaml"
+    with open(data_yaml_path, "r") as f:
         data = yaml.safe_load(f)
         class_names = data["names"]
     

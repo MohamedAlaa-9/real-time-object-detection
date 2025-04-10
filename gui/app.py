@@ -1,14 +1,13 @@
 import tkinter as tk
 import cv2
 from PIL import Image, ImageTk
-from .display_results import display_detections
+from gui.display_results import display_detections
 from ml_models.inference import infer
 
 class App:
     def __init__(self, window, window_title):
         self.window = window
         self.window.title(window_title)
-        self.video_path = 'datasets/raw/example.mp4' # Path to the video file
 
         # Initialize video source (default webcam)
         self.video_source = 0

@@ -4,13 +4,14 @@ import pycuda.autoinit # Initializes CUDA context
 from pathlib import Path
 import logging
 import sys
+import yaml # Added for YAML loading
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Define base directory relative to this script
-BASE_DIR = Path(__file__).resolve().parent
+# Define project root directory (assuming script is in ml-models/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.Logger, min_shape: tuple, opt_shape: tuple, max_shape: tuple):
     """Builds the TensorRT engine from an ONNX model."""
@@ -105,24 +106,53 @@ def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.L
 
 
 if __name__ == '__main__':
-    # --- Configuration ---
-    # Assumes the ONNX model is exported by export_model.py
-    onnx_file = BASE_DIR / 'best.onnx' 
-    engine_file = BASE_DIR / 'best.trt'
+    # --- Configuration Loading ---
+    CONFIG_PATH = PROJECT_ROOT / "config/train_config.yaml"
+
+    if not CONFIG_PATH.exists():
+        logger.error(f"Configuration file not found at {CONFIG_PATH}")
+        sys.exit(1)
+
+    logger.info(f"Loading configuration from: {CONFIG_PATH}")
+    with open(CONFIG_PATH, 'r') as f:
+        try:
+            config = yaml.safe_load(f)
+            if 'export' not in config:
+                logger.error("Missing 'export' section in configuration file.")
+                sys.exit(1)
+            export_config = config['export']
+            logger.info("Loaded export configuration relevant for optimization:")
+            logger.info(f"  onnx_output_path: {export_config['onnx_output_path']}")
+            logger.info(f"  input_height: {export_config['input_height']}")
+            logger.info(f"  input_width: {export_config['input_width']}")
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing configuration file: {e}")
+            sys.exit(1)
+
+    # --- Paths and Settings from Config ---
+    onnx_file = PROJECT_ROOT / export_config['onnx_output_path']
+    # Keep engine output path relative to this script's dir for simplicity
+    engine_file = Path(__file__).resolve().parent / 'best.trt' 
+    
+    input_h = export_config['input_height']
+    input_w = export_config['input_width']
     
     # Define optimization profile shapes (Batch, Channel, Height, Width)
-    # These should match the expected input dimensions during inference
-    # Example: Allow batch size 1 only, fixed 640x640 resolution
-    min_input_shape = (1, 3, 640, 640)
-    opt_input_shape = (1, 3, 640, 640)
-    max_input_shape = (1, 3, 640, 640)
-    # If dynamic batch size is needed: e.g., min=(1,3,640,640), opt=(4,3,640,640), max=(8,3,640,640)
-
+    # Using fixed batch size of 1 based on previous hardcoded value.
+    # Make batch size configurable if needed.
+    min_input_shape = (1, 3, input_h, input_w)
+    opt_input_shape = (1, 3, input_h, input_w)
+    max_input_shape = (1, 3, input_h, input_w)
+    
     # TensorRT Logger Severity
     trt_verbosity = trt.Logger.WARNING # Or INFO, VERBOSE for more details
 
     # --- Execution ---
     trt_logger = trt.Logger(trt_verbosity)
+    
+    # Ensure engine output directory exists
+    engine_file.parent.mkdir(parents=True, exist_ok=True)
+    
     engine = build_engine(onnx_file, engine_file, trt_logger, min_input_shape, opt_input_shape, max_input_shape)
 
     if engine:
