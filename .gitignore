@@ -29,6 +29,7 @@ datasets/*.zip
 datasets/*.tar.gz
 datasets/*.tgz
 mlruns/*
+runs/
 
 # 🔑 Environment Variables & Secrets
 .env
