@@ -79,11 +79,8 @@ def post_process_yolo(
         return [], [], []
 
     # Apply Non-Maximum Suppression (NMS)
-    # Ensure boxes are integers for cv2.dnn.NMSBoxes if needed, though it often handles floats
-    # NMSBoxes expects boxes in [x_min, y_min, width, height] format if using that specific function,
-    # but the standard cv2.dnn.NMSBoxes takes [x_min, y_min, x_max, y_max] - let's stick to that.
-    # However, the function signature requires width and height for the boxes parameter.
-    # Let's convert boxes to [x, y, w, h] format for NMSBoxes.
+    # cv2.dnn.NMSBoxes expects boxes in [x_min, y_min, width, height] format.
+    # Convert our [x_min, y_min, x_max, y_max] boxes to the required format.
     nms_boxes = [[b[0], b[1], b[2] - b[0], b[3] - b[1]] for b in boxes] # Convert to [x, y, w, h]
 
     indices = cv2.dnn.NMSBoxes(nms_boxes, scores, conf_thres, iou_thres)

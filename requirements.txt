@@ -5,7 +5,9 @@ numpy # Explicitly add numpy
 pandas
 Pillow
 PyYAML # Added dependency for data.yaml handling
-
+tensorrt
+pycuda
+prometheus-client
 # Computer Vision & GUI
 opencv-python-headless # Use headless version unless full GUI features of opencv are needed
 # matplotlib # Uncomment if plotting is actively used outside notebooks

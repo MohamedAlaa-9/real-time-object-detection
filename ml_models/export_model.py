@@ -70,32 +70,49 @@ logger.info(f"  Dynamic axes: {enable_dynamic_axes}")
 logger.info(f"  Simplify ONNX: {simplify_onnx}")
 
 try:
-    model.export(
+    export_result = model.export(
         format='onnx',
         imgsz=input_size,
         opset=opset_version,
         dynamic=enable_dynamic_axes,
         simplify=simplify_onnx,
-        # The export function saves the file relative to the model path by default,
-        # or you might need to specify 'file=onnx_output_path' depending on ultralytics version.
-        # Let's assume it saves 'best.onnx' in the current dir or model dir.
-        # We will explicitly check for the expected output file later.
+        # Note: ultralytics export saves the file relative to the working directory
+        # or the model's path by default, often named like the .pt file but with .onnx
     )
-    
-    # Verify output file exists (ultralytics might save it as model_name.onnx)
-    expected_onnx_file = Path(str(trained_model_path).replace('.pt', '.onnx')) # Default export name
-    if expected_onnx_file.exists() and expected_onnx_file != onnx_output_path:
-        logger.info(f"Moving exported file from {expected_onnx_file} to {onnx_output_path}")
-        expected_onnx_file.rename(onnx_output_path)
+
+    # The export function might return the path or save to a predictable name
+    # Let's find the default exported file name (usually model_name.onnx)
+    default_onnx_filename = trained_model_path.with_suffix('.onnx').name
+    default_onnx_filepath = Path(default_onnx_filename) # Check in current dir first
+
+    # Check if the export function returned the path directly
+    exported_file_path = None
+    if isinstance(export_result, str):
+        exported_file_path = Path(export_result)
+        logger.info(f"Export function returned path: {exported_file_path}")
+    elif default_onnx_filepath.exists():
+         exported_file_path = default_onnx_filepath
+         logger.info(f"Found exported file at default path: {exported_file_path}")
+    else:
+        # Fallback: Check near the original model if not in cwd
+        alt_path = trained_model_path.parent / default_onnx_filename
+        if alt_path.exists():
+            exported_file_path = alt_path
+            logger.info(f"Found exported file near original model: {exported_file_path}")
+
+    if exported_file_path and exported_file_path.exists():
+        if exported_file_path.resolve() != onnx_output_path.resolve():
+            logger.info(f"Moving exported file from {exported_file_path} to {onnx_output_path}")
+            exported_file_path.rename(onnx_output_path)
+        else:
+            logger.info(f"Exported file is already at the target location: {onnx_output_path}")
     elif not onnx_output_path.exists():
-         # Check common locations if not found immediately
-         alt_path1 = BASE_DIR / f"{trained_model_path.stem}.onnx"
-         if alt_path1.exists():
-             logger.info(f"Moving exported file from {alt_path1} to {onnx_output_path}")
-             alt_path1.rename(onnx_output_path)
-         else:
-             # If still not found, raise error
-             raise FileNotFoundError(f"Exported ONNX file not found at expected paths: {onnx_output_path} or similar.")
+         # If we couldn't find the exported file and the target doesn't exist
+         raise FileNotFoundError(f"Exported ONNX file could not be found at expected locations (e.g., {default_onnx_filepath}, near {trained_model_path}) and was not moved to {onnx_output_path}.")
+    else:
+        # Target path already exists, assume export worked correctly to the target
+        logger.info(f"Target ONNX file already exists at: {onnx_output_path}. Assuming export was successful.")
+
 
     logger.info(f"Model successfully exported to: {onnx_output_path}")
     sys.exit(0) # Success

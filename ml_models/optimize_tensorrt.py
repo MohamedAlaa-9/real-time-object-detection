@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Define project root directory (assuming script is in ml-models/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.Logger, min_shape: tuple, opt_shape: tuple, max_shape: tuple):
+def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.Logger, enable_dynamic: bool, min_shape: tuple, opt_shape: tuple, max_shape: tuple):
     """Builds the TensorRT engine from an ONNX model."""
     
     if not onnx_file_path.exists():
@@ -63,12 +63,18 @@ def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.L
     profile = builder.create_optimization_profile()
     # Set shape constraints for the input tensor.
     # Format: (min_shape, optimal_shape, max_shape)
-    # Ensure these shapes are compatible with your model and use case.
-    profile.set_shape(input_name, min_shape, opt_shape, max_shape)
-    logger.info(f"Adding optimization profile for input '{input_name}':")
-    logger.info(f"  MIN shape: {min_shape}")
-    logger.info(f"  OPT shape: {opt_shape}")
-    logger.info(f"  MAX shape: {max_shape}")
+    if enable_dynamic:
+        logger.info(f"Adding optimization profile for input '{input_name}' with dynamic batch size:")
+        logger.info(f"  MIN shape: {min_shape}")
+        logger.info(f"  OPT shape: {opt_shape}")
+        logger.info(f"  MAX shape: {max_shape}")
+        profile.set_shape(input_name, min_shape, opt_shape, max_shape)
+    else:
+        # Use fixed shape if dynamic axes are disabled
+        fixed_shape = opt_shape # Use the optimal shape as the fixed shape
+        logger.info(f"Adding optimization profile for input '{input_name}' with fixed shape: {fixed_shape}")
+        profile.set_shape(input_name, fixed_shape, fixed_shape, fixed_shape)
+        
     config.add_optimization_profile(profile)
 
     # --- Build Engine ---
@@ -125,24 +131,34 @@ if __name__ == '__main__':
             logger.info(f"  onnx_output_path: {export_config['onnx_output_path']}")
             logger.info(f"  input_height: {export_config['input_height']}")
             logger.info(f"  input_width: {export_config['input_width']}")
+            logger.info(f"  enable_dynamic_axes: {export_config.get('enable_dynamic_axes', False)}") # Get dynamic flag
         except yaml.YAMLError as e:
             logger.error(f"Error parsing configuration file: {e}")
             sys.exit(1)
 
     # --- Paths and Settings from Config ---
     onnx_file = PROJECT_ROOT / export_config['onnx_output_path']
-    # Keep engine output path relative to this script's dir for simplicity
-    engine_file = Path(__file__).resolve().parent / 'best.trt' 
+    # Derive engine path from ONNX path
+    engine_file = onnx_file.with_suffix('.trt')
     
     input_h = export_config['input_height']
     input_w = export_config['input_width']
+    enable_dynamic = export_config.get('enable_dynamic_axes', False)
     
     # Define optimization profile shapes (Batch, Channel, Height, Width)
-    # Using fixed batch size of 1 based on previous hardcoded value.
-    # Make batch size configurable if needed.
-    min_input_shape = (1, 3, input_h, input_w)
-    opt_input_shape = (1, 3, input_h, input_w)
-    max_input_shape = (1, 3, input_h, input_w)
+    if enable_dynamic:
+        # Example: Allow batch size from 1 to 16, optimize for 1
+        min_batch_size = 1
+        opt_batch_size = 1
+        max_batch_size = 16 # Adjust as needed
+        min_input_shape = (min_batch_size, 3, input_h, input_w)
+        opt_input_shape = (opt_batch_size, 3, input_h, input_w)
+        max_input_shape = (max_batch_size, 3, input_h, input_w)
+    else:
+        # Fixed batch size of 1
+        min_input_shape = (1, 3, input_h, input_w)
+        opt_input_shape = (1, 3, input_h, input_w)
+        max_input_shape = (1, 3, input_h, input_w)
     
     # TensorRT Logger Severity
     trt_verbosity = trt.Logger.WARNING # Or INFO, VERBOSE for more details
@@ -153,7 +169,7 @@ if __name__ == '__main__':
     # Ensure engine output directory exists
     engine_file.parent.mkdir(parents=True, exist_ok=True)
     
-    engine = build_engine(onnx_file, engine_file, trt_logger, min_input_shape, opt_input_shape, max_input_shape)
+    engine = build_engine(onnx_file, engine_file, trt_logger, enable_dynamic, min_input_shape, opt_input_shape, max_input_shape)
 
     if engine:
         logger.info(f"Engine build complete. Saved to {engine_file}")

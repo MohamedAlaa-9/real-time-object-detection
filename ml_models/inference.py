@@ -8,6 +8,7 @@ from prometheus_client import Counter, Histogram, start_http_server
 from utils import post_process_yolo  # Assuming this handles NMS correctly
 from pathlib import Path
 import logging
+import atexit # Import atexit for cleanup
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -165,9 +166,11 @@ def infer(frame: np.ndarray):
     try:
         with POSTPROCESS_TIME.time():
             # Reshape the raw output based on the known output shape
-            # Example: output shape might be (1, num_predictions, num_classes + 5)
+            # Example: output shape might be (batch_size, num_predictions, num_classes + 5)
+            # We are processing one frame at a time, so batch_size is 1.
             # Adjust the reshape based on the actual model output structure
-            raw_output = outputs[0]['host'].reshape(engine.max_batch_size, -1, output_components)  # Adjust shape as needed
+            # Use explicit batch size 1 for clarity
+            raw_output = outputs[0]['host'].reshape(1, -1, output_components)
 
             # Assuming post_process_yolo handles NMS and returns filtered results
             # Pass the first batch's output, original frame dimensions for scaling
@@ -191,21 +194,29 @@ def infer(frame: np.ndarray):
     return boxes, scores, classes
 
 # --- Cleanup (Optional but good practice) ---
-# Consider adding a cleanup function to release CUDA resources if the script runs long
-# or is part of a larger application.
-# def cleanup():
-#     logger.info("Releasing CUDA resources...")
-#     # Free device memory (example for one input/output)
-#     if inputs:
-#         cuda.mem_free(inputs[0]['device'])
-#     if outputs:
-#         cuda.mem_free(outputs[0]['device'])
-#     # Destroy stream, context, engine if needed
-#     # stream.detach() # Or similar cleanup
-#     # context.destroy() # Careful with context lifecycle
-#     # engine.destroy() # Careful with engine lifecycle
-# import atexit
-# atexit.register(cleanup)
+# Register cleanup function to be called on script exit
+def cleanup():
+    logger.info("Releasing CUDA resources...")
+    # Free device memory
+    # It's generally safer to let pycuda.autoinit handle context cleanup,
+    # but explicitly freeing memory allocated with mem_alloc is good practice.
+    try:
+        for i in inputs:
+            if i.get('device'):
+                i['device'].free()
+        for o in outputs:
+            if o.get('device'):
+                o['device'].free()
+        if stream:
+            # stream.synchronize() # Ensure stream is finished before potential context destruction
+            pass # pycuda stream cleanup is often implicit with context
+        logger.info("CUDA memory freed.")
+    except Exception as e:
+        logger.error(f"Error during CUDA resource cleanup: {e}")
+    # Note: pycuda.autoinit typically handles context destruction.
+    # Explicit context management (pop/push) might be needed in complex apps.
+
+atexit.register(cleanup)
 
 logger.info("Inference engine initialization complete. Ready for inference.")
 
