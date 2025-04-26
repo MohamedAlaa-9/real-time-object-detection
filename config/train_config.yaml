@@ -7,7 +7,7 @@ base_model: "ml-models/yolo11n.pt" # Path relative to project root, or absolute
 data_yaml: "datasets/processed/data.yaml" # Path relative to project root, or absolute
 
 # Training Hyperparameters
-epochs: 100
+epochs: 1
 imgsz: 640 # Also used for export input size by default
 batch: 16
 device: "0" # Use "cpu" or GPU index like "0", "0,1" etc.

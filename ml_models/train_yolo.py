@@ -54,7 +54,7 @@ if not data_yaml_path.exists():
     sys.exit(1)
 
 # --- Model Initialization ---
-model = YOLO(str(base_model_path))
+model = YOLO("ml_models/yolo11n.pt")
 
 # --- Training Arguments from Config ---
 # Select relevant keys for model.train()
