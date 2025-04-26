@@ -1,10 +1,10 @@
 # Training and Export Configuration for YOLOv11 on KITTI
 
 # Model Selection (Training)
-base_model: "ml-models/yolo11n.pt" # Path relative to project root, or absolute
+base_model: "./ml-models/yolo11n.pt" # Path relative to project root, or absolute
 
 # Dataset
-data_yaml: "datasets/processed/data.yaml" # Path relative to project root, or absolute
+data_yaml: "./datasets/processed/data.yaml" # Path relative to project root, or absolute
 
 # Training Hyperparameters
 epochs: 1
