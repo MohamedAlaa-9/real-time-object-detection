@@ -8,7 +8,8 @@ __pycache__/
 Thumbs.db
 Project-instructions.md
 # Tutorial.md
-
+uploads/*
+results/*
 # 🖥️ Virtual Environment & Python Cache
 venv/
 __pycache__/

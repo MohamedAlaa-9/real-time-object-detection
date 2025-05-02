@@ -16,7 +16,7 @@ opencv-python-headless # Use headless version unless full GUI features of opencv
 # Monitoring & Experiment Tracking
 prometheus-client
 mlflow
-
+tensorrt
 # Dataset Specific (Consider moving to optional dependencies if not always needed)
 # nuscenes-devkit # Uncomment if NuScenes dataset is used
 # openimages # Uncomment if OpenImages dataset is used

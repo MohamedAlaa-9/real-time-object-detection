@@ -1,0 +1,475 @@
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import VideoUpload from '../components/VideoUpload.svelte';
+
+  // State variables
+  let activeTab = 'camera'; // 'camera' or 'upload'
+  let videoElement;
+  let canvasElement;
+  let processingElement;
+  let processingContext;
+  let wsConnection = null;
+  let isConnected = false;
+  let isDetecting = false;
+  let fps = 0;
+  let frameCount = 0;
+  let lastTime = Date.now();
+  let processingTime = 0;
+  let detections = [];
+  let errorMessage = null;
+
+  // Configuration
+  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
+  const FPS_INTERVAL = 1000; // Update FPS every second
+  
+  // Switch between camera and upload tabs
+  function switchTab(tab) {
+    activeTab = tab;
+    
+    // If switching away from camera, stop detection and disconnect
+    if (tab !== 'camera' && isDetecting) {
+      toggleDetection();
+    }
+  }
+
+  // Setup the WebSocket connection
+  function setupWebSocket() {
+    if (wsConnection) {
+      wsConnection.close();
+    }
+
+    try {
+      wsConnection = new WebSocket(WS_URL);
+      
+      wsConnection.onopen = () => {
+        isConnected = true;
+        errorMessage = null;
+        console.log('WebSocket connection established');
+      };
+      
+      wsConnection.onclose = (event) => {
+        isConnected = false;
+        isDetecting = false;
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        
+        // Try to reconnect after a delay if the detection is active
+        if (isDetecting) {
+          setTimeout(setupWebSocket, 3000);
+        }
+      };
+      
+      wsConnection.onerror = (error) => {
+        errorMessage = "WebSocket connection error. Check if the backend server is running.";
+        console.error('WebSocket error:', error);
+      };
+      
+      wsConnection.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Handle error message from the server
+          if (data.error) {
+            errorMessage = `Server error: ${data.error}`;
+            return;
+          }
+          
+          // Update processing time
+          processingTime = data.processing_time ? Math.round(data.processing_time * 1000) : 0;
+          
+          // Update detections data
+          detections = data.detections || [];
+          
+          // Display the processed frame
+          if (data.processed_frame) {
+            const img = new Image();
+            img.onload = () => {
+              processingContext.clearRect(0, 0, processingElement.width, processingElement.height);
+              processingContext.drawImage(img, 0, 0, processingElement.width, processingElement.height);
+            };
+            img.src = data.processed_frame;
+          }
+          
+          // If we're still detecting, send the next frame
+          if (isDetecting) {
+            captureAndSendFrame();
+          }
+          
+        } catch (err) {
+          console.error('Error processing WebSocket message:', err);
+        }
+      };
+    } catch (err) {
+      errorMessage = `Failed to connect to WebSocket server: ${err.message}`;
+      console.error('WebSocket setup error:', err);
+    }
+  }
+
+  // Initialize video stream from the webcam
+  async function initializeCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 640, height: 480 } 
+      });
+      
+      videoElement.srcObject = stream;
+      videoElement.play();
+      
+      // Initialize the processing canvas
+      processingContext = processingElement.getContext('2d');
+      
+      errorMessage = null;
+    } catch (err) {
+      errorMessage = `Camera access error: ${err.message}`;
+      console.error('Camera initialization error:', err);
+    }
+  }
+
+  // Capture a frame from video and send to the WebSocket
+  function captureAndSendFrame() {
+    if (!isConnected || !videoElement || !canvasElement || !wsConnection) return;
+    
+    try {
+      const context = canvasElement.getContext('2d');
+      if (!context) return;
+      
+      // Draw the current video frame on the canvas
+      context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      
+      // Convert the canvas to a data URL (JPEG format with 0.8 quality)
+      const imageData = canvasElement.toDataURL('image/jpeg', 0.8);
+      
+      // Send the image data to the server
+      wsConnection.send(imageData);
+      
+      // Update frame count for FPS calculation
+      frameCount++;
+      const now = Date.now();
+      if (now - lastTime >= FPS_INTERVAL) {
+        fps = Math.round((frameCount * 1000) / (now - lastTime));
+        frameCount = 0;
+        lastTime = now;
+      }
+    } catch (err) {
+      console.error('Error capturing/sending frame:', err);
+    }
+  }
+
+  // Toggle detection on/off
+  function toggleDetection() {
+    isDetecting = !isDetecting;
+    
+    if (isDetecting) {
+      if (!isConnected) {
+        setupWebSocket();
+      }
+      captureAndSendFrame();
+    }
+  }
+
+  // Component lifecycle
+  onMount(() => {
+    if (activeTab === 'camera') {
+      initializeCamera();
+      setupWebSocket();
+    }
+  });
+
+  onDestroy(() => {
+    isDetecting = false;
+    if (wsConnection) {
+      wsConnection.close();
+    }
+    // Stop video stream if exists
+    if (videoElement && videoElement.srcObject) {
+      const tracks = videoElement.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  });
+</script>
+
+<svelte:head>
+  <title>Real-Time Object Detection</title>
+</svelte:head>
+
+<main>
+  <h1>Real-Time Object Detection</h1>
+  
+  <div class="tabs">
+    <button 
+      class:active={activeTab === 'camera'} 
+      on:click={() => switchTab('camera')}
+    >
+      Camera Detection
+    </button>
+    <button 
+      class:active={activeTab === 'upload'} 
+      on:click={() => switchTab('upload')}
+    >
+      Video Upload
+    </button>
+  </div>
+  
+  {#if activeTab === 'camera'}
+    <div class="status-info">
+      <div class="status-item">
+        <span class="label">Connection:</span>
+        <span class="value" class:connected={isConnected} class:disconnected={!isConnected}>
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+      
+      <div class="status-item">
+        <span class="label">Detection:</span>
+        <span class="value" class:running={isDetecting} class:stopped={!isDetecting}>
+          {isDetecting ? 'Running' : 'Stopped'}
+        </span>
+      </div>
+      
+      <div class="status-item">
+        <span class="label">FPS:</span>
+        <span class="value">{fps}</span>
+      </div>
+      
+      <div class="status-item">
+        <span class="label">Processing:</span>
+        <span class="value">{processingTime} ms</span>
+      </div>
+    </div>
+
+    {#if errorMessage}
+      <div class="error-message">
+        {errorMessage}
+      </div>
+    {/if}
+
+    <div class="video-container">
+      <div class="video-wrapper">
+        <h3>Camera Input</h3>
+        <video bind:this={videoElement} width="640" height="480" autoplay muted></video>
+      </div>
+      
+      <div class="video-wrapper">
+        <h3>Object Detection</h3>
+        <canvas bind:this={processingElement} width="640" height="480"></canvas>
+      </div>
+    </div>
+
+    <!-- Hidden canvas for capturing frames -->
+    <canvas bind:this={canvasElement} width="640" height="480" style="display: none;"></canvas>
+
+    <div class="controls">
+      <button on:click={toggleDetection} class:active={isDetecting}>
+        {isDetecting ? 'Stop Detection' : 'Start Detection'}
+      </button>
+      <button on:click={setupWebSocket} disabled={isConnected}>
+        Reconnect
+      </button>
+    </div>
+
+    <div class="detections-container">
+      <h3>Detections ({detections.length})</h3>
+      {#if detections.length > 0}
+        <ul class="detection-list">
+          {#each detections as detection}
+            <li>
+              <span class="label">{detection.label}</span>
+              <span class="score">Confidence: {(detection.score * 100).toFixed(1)}%</span>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>No objects detected</p>
+      {/if}
+    </div>
+  {:else if activeTab === 'upload'}
+    <VideoUpload />
+  {/if}
+</main>
+
+<style>
+  main {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  .tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  
+  .tabs button {
+    padding: 10px 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #666;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin: 0 10px;
+  }
+  
+  .tabs button:hover {
+    color: #2196F3;
+  }
+  
+  .tabs button.active {
+    color: #2196F3;
+    border-bottom: 3px solid #2196F3;
+    background-color: transparent;
+  }
+
+  .status-info {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 5px;
+    flex-wrap: wrap;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .status-item .label {
+    font-weight: bold;
+  }
+
+  .status-item .value {
+    min-width: 60px;
+  }
+
+  .connected { color: green; }
+  .disconnected { color: red; }
+  .running { color: green; }
+  .stopped { color: orange; }
+
+  .error-message {
+    background-color: #ffdddd;
+    color: #990000;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border-left: 5px solid #990000;
+  }
+
+  .video-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .video-wrapper {
+    flex: 1;
+    min-width: 320px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+
+  .video-wrapper h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  video, canvas {
+    width: 100%;
+    height: auto;
+    background-color: #000;
+    border-radius: 5px;
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+  }
+
+  button:hover {
+    background-color: #45a049;
+  }
+
+  button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+
+  button.active {
+    background-color: #f44336;
+  }
+
+  .detections-container {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+
+  .detections-container h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .detection-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .detection-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .detection-list li:last-child {
+    border-bottom: none;
+  }
+
+  .label {
+    font-weight: bold;
+    text-transform: capitalize;
+  }
+
+  .score {
+    color: #666;
+  }
+
+  @media (max-width: 768px) {
+    .video-container {
+      flex-direction: column;
+    }
+  }
+</style>
