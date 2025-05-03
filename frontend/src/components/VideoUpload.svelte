@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
 
   // API URL (fallback to localhost if not provided)
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // State variables
   let uploading = false;
@@ -58,11 +58,14 @@
       const response = await fetch(`${API_URL}/video/upload/`, {
         method: 'POST',
         body: formData
+      }).catch(err => {
+        console.error("Fetch error:", err);
+        throw new Error(`Network error: ${err.message}. Make sure the backend server is running at ${API_URL}`);
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Video upload failed');
+        const errorData = await response.json().catch(e => ({ detail: `HTTP error ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.detail || `HTTP error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -73,6 +76,7 @@
       startStatusCheck();
     } catch (error) {
       errorMessage = error.message || "Failed to upload video";
+      console.error("Upload error:", error);
     } finally {
       uploading = false;
     }

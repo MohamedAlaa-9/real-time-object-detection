@@ -4,7 +4,7 @@ global:
 scrape_configs:
   - job_name: "object_detection"
     static_configs:
-      # Use environment variable for target, default to localhost:8000
+      # Target the metrics endpoint exposed by inference.py (default port 8000)
       # Set METRICS_ENDPOINT=host.docker.internal:8000 when running docker on mac/windows
       # Or set to the appropriate service name/IP if using docker-compose/k8s
       - targets: ["${METRICS_ENDPOINT:-localhost:8000}"]

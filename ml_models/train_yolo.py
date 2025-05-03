@@ -19,7 +19,7 @@ except ImportError:
     MLFLOW_AVAILABLE = False
     logger.warning("MLflow not installed. Experiment tracking disabled.")
 
-# Define project root directory (assuming script is in ml-models/)
+# Define project root directory (assuming script is in ml_models/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # --- Configuration Loading ---

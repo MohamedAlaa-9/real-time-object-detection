@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 # KITTI Dataset URLs
-KITTI_IMAGE_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip"
-KITTI_LABEL_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_label_2.zip"
-KITTI_CALIB_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_calib.zip"
+# KITTI_IMAGE_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_image_2.zip"
+# KITTI_LABEL_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_label_2.zip"
+# KITTI_CALIB_URL = "https://s3.eu-central-1.amazonaws.com/avg-kitti/data_object_calib.zip"
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
@@ -45,6 +45,21 @@ def download_kitti():
         except Exception as e:
             print(f"Failed to download KITTI calibration data: {e}")
             return
+        with zipfile.ZipFile(kitti_calib_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
+
+    if kitti_image_path.exists():
+        print("KITTI image data here!")
+        with zipfile.ZipFile(kitti_image_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
+
+    if kitti_label_path.exists():
+        print("KITTI label data here!")
+        with zipfile.ZipFile(kitti_label_path, 'r') as zip_ref:
+            zip_ref.extractall(RAW_DIR / 'kitti')
+
+    if kitti_calib_path.exists():
+        print("KITTI calib data here!")
         with zipfile.ZipFile(kitti_calib_path, 'r') as zip_ref:
             zip_ref.extractall(RAW_DIR / 'kitti')
 

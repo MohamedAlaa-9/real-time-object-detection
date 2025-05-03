@@ -19,10 +19,10 @@ __pycache__/
 
 
 # 🤖 Machine Learning Artifacts
-ml-models/__pycache__/
-ml-models/checkpoints/
-ml-models/logs/
-ml-models/runs/  # YOLOv8 training runs
+ml_models/__pycache__/
+ml_models/checkpoints/
+ml_models/logs/
+ml_models/runs/  # YOLOv8 training runs
 
 # 📊 Datasets & Data Files
 datasets/raw/

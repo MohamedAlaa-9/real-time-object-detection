@@ -19,7 +19,7 @@
   let errorMessage = null;
 
   // Configuration
-  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
+  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8081/ws';
   const FPS_INTERVAL = 1000; // Update FPS every second
   
   // Switch between camera and upload tabs
@@ -39,27 +39,43 @@
     }
 
     try {
+      errorMessage = null;
+      
+      // Log connection attempt
+      console.log(`Attempting WebSocket connection to ${WS_URL}`);
       wsConnection = new WebSocket(WS_URL);
       
+      // Add a timeout for connection
+      const connectionTimeout = setTimeout(() => {
+        if (wsConnection && wsConnection.readyState !== WebSocket.OPEN) {
+          errorMessage = `WebSocket connection timeout. The server at ${WS_URL} is not responding.`;
+          wsConnection.close();
+        }
+      }, 5000);
+      
       wsConnection.onopen = () => {
+        clearTimeout(connectionTimeout);
         isConnected = true;
         errorMessage = null;
         console.log('WebSocket connection established');
       };
       
       wsConnection.onclose = (event) => {
+        clearTimeout(connectionTimeout);
         isConnected = false;
         isDetecting = false;
         console.log('WebSocket connection closed:', event.code, event.reason);
         
         // Try to reconnect after a delay if the detection is active
         if (isDetecting) {
+          errorMessage = "Connection lost. Attempting to reconnect...";
           setTimeout(setupWebSocket, 3000);
         }
       };
       
       wsConnection.onerror = (error) => {
-        errorMessage = "WebSocket connection error. Check if the backend server is running.";
+        clearTimeout(connectionTimeout);
+        errorMessage = `WebSocket connection error. Check if the backend server is running at ${WS_URL.split('/')[2]}.`;
         console.error('WebSocket error:', error);
       };
       

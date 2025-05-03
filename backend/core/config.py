@@ -16,24 +16,28 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
-# Load class names from data.yaml
-DATA_YAML_PATH = PROJECT_ROOT / "datasets/processed/data.yaml"
-
-try:
-    import yaml
-    with open(DATA_YAML_PATH, "r") as f:
-        data = yaml.safe_load(f)
-        CLASS_NAMES = data["names"]
-        logger.info(f"Loaded class names: {CLASS_NAMES}")
-except Exception as e:
-    logger.error(f"Failed to load class names: {e}")
-    CLASS_NAMES = ["pedestrian", "car", "cyclist"]  # Default KITTI classes
-    logger.info(f"Using default class names: {CLASS_NAMES}")
+# --- Class Names Configuration ---
+# Since inference.py is now configured to use the official yolov8n.pt model
+# (trained on COCO), we use the standard COCO class names here,
+# instead of loading from the KITTI-specific data.yaml.
+CLASS_NAMES = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+    'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+    'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+    'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+    'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+    'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+    'hair drier', 'toothbrush'
+]
+logger.info(f"Using COCO class names for inference: {len(CLASS_NAMES)} classes")
 
 # Generate colors for visualizing each class
 import random
+# Ensure enough colors are generated for all classes
 COLORS = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(len(CLASS_NAMES))]
 
 # API settings
-API_PORT = int(os.getenv("API_PORT", 8000))
+API_PORT = int(os.getenv("API_PORT", 8081))  # Ensure this is 8081
 API_HOST = os.getenv("API_HOST", "0.0.0.0")

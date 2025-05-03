@@ -1,43 +1,41 @@
 # Training and Export Configuration for YOLOv11 on KITTI
 
 # Model Selection (Training)
-base_model: "./ml-models/yolo11n.pt" # Path relative to project root, or absolute
+base_model: "./ml_models/yolo11n.pt" # Using the smaller nano model
 
 # Dataset
 data_yaml: "./datasets/processed/data.yaml" # Path relative to project root, or absolute
 
 # Training Hyperparameters
 epochs: 1
-imgsz: 640 # Also used for export input size by default
-batch: 16
+imgsz: 416 # Further reduced from 512 to save more memory
+batch: 1 # Minimum batch size to ensure training can proceed
 device: "0" # Use "cpu" or GPU index like "0", "0,1" etc.
 patience: 20 # Early stopping patience
 
 # Augmentation Settings
 augment: True
-mosaic: 1.0
-mixup: 0.5
+mosaic: 0.0 # Disabled mosaic augmentation to save memory
+mixup: 0.0 # Disabled mixup augmentation to save memory
 hsv_h: 0.015
 hsv_s: 0.7
 hsv_v: 0.4
 
 # Output & Logging (Training)
 project: "runs/train" # Base directory for saving runs
-name: "yolov11_kitti_exp" # Specific experiment name within project dir
+name: "yolov11_kitti_exp3" # New experiment name to avoid overwriting previous attempts
 
 # --- Export Settings ---
 export:
   # Path to the trained .pt model to export.
-  # IMPORTANT: Update this path if 'project' or 'name' above changes,
-  # or if you want to export a different model checkpoint.
-  trained_model_path: "runs/train/yolov11_kitti_exp/weights/best.pt" # Relative to project root
+  trained_model_path: "runs/train/yolov11_kitti_exp3/weights/best.pt" # Updated to match new name
 
   # Output path for the ONNX model
-  onnx_output_path: "ml-models/best.onnx" # Relative to project root
+  onnx_output_path: "ml_models/best.onnx" # Relative to project root
 
-  # Export parameters (can often reuse training imgsz)
-  input_height: 640
-  input_width: 640
+  # Export parameters
+  input_height: 416 # Reduced to match training size
+  input_width: 416 # Reduced to match training size
   opset_version: 12
   enable_dynamic_axes: True
   simplify_onnx: True

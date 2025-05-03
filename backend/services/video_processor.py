@@ -3,17 +3,28 @@ import base64
 import cv2
 import numpy as np
 import time
+import sys
+import os
 from pathlib import Path
 
-# Use mock inference instead of TensorRT-based inference
+# Add the project root to the Python path to ensure imports work correctly
+project_root = str(Path(__file__).resolve().parents[2])
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Import logger first
+from backend.core.config import logger, CLASS_NAMES, COLORS, RESULTS_DIR
+
+# Use real inference - don't fall back to mock
 try:
     from ml_models.inference import infer
     using_real_inference = True
-except ImportError:
+    logger.info("Successfully loaded real inference engine")
+except Exception as e:
+    logger.error(f"Error importing real inference engine: {e}")
     from backend.services.mock_inference import infer
     using_real_inference = False
-
-from backend.core.config import logger, CLASS_NAMES, COLORS, RESULTS_DIR
+    logger.warning("Using mock inference function - please check ml_models/inference.py")
 
 # Dictionary to track processing status
 video_processing_status = {}

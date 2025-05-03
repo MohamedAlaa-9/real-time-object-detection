@@ -9,7 +9,7 @@ import yaml # Added for YAML loading
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Define project root directory (assuming script is in ml-models/)
+# Define project root directory (assuming script is in ml_models/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # --- Configuration Loading ---

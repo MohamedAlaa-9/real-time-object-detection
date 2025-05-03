@@ -1,6 +1,7 @@
 import os
 import yaml
 import numpy as np
+import cv2  # Added missing import
 from pathlib import Path
 import random  # Import random for seed setting if needed, numpy is already imported
 from datasets.convert_kitti_to_yolo import convert_kitti_to_yolo
@@ -58,9 +59,9 @@ for dir in [RAW_DIR, PROCESSED_DIR]:
     dir.mkdir(parents=True, exist_ok=True)
 
 def preprocess_kitti():
-    # Convert KITTI to YOLO format (simplified example)
-    kitti_images = RAW_DIR / "kitti/training/image_2"
-    kitti_labels = RAW_DIR / "kitti/training/label_2"
+    # Convert KITTI to YOLO format - updated paths to match your folder structure
+    kitti_images = RAW_DIR / "kitti/image"
+    kitti_labels = RAW_DIR / "kitti/lable"  # Note: using "lable" to match your folder name
 
     # Set a seed for reproducible train/val splits
     np.random.seed(42)
@@ -71,7 +72,12 @@ def preprocess_kitti():
 
     for img_file in image_files:
         img, yolo_labels = convert_kitti_to_yolo(img_file, kitti_labels, PROCESSED_DIR)
-        if not img:
+        if img is None:  # Check for None instead of truthiness
+            continue
+        
+        # Check if we got any labels
+        if not yolo_labels:
+            print(f"No valid labels found for {img_file.name}, skipping.")
             continue
 
         # Remove overlapping bounding boxes
@@ -116,7 +122,7 @@ def create_data_yaml():
         "path": absolute_processed_path, # Use absolute path
         "train": "train/images",
         "val": "val/images",
-        "names": ["pedestrian", "car", "cyclist"]
+        "names": ["pedestrian", "car", "cyclist", "van", "truck", "person_sitting", "tram", "misc"]
     }
     with open(PROCESSED_DIR / "data.yaml", "w") as f:
         yaml.dump(data_yaml, f)
