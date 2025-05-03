@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
 
   // API URL (fallback to localhost if not provided)
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
 
   // State variables
   let uploading = false;

@@ -43,7 +43,8 @@ async def process_frame(frame_data: str):
         
         # Draw bounding boxes on the frame
         for box, score, cls in zip(boxes, scores, classes):
-            x_min, y_min, x_max, y_max = box
+            # Ensure coordinates are integers
+            x_min, y_min, x_max, y_max = map(int, box)
             label = f"{CLASS_NAMES[cls]}: {score:.2f}"
             color = COLORS[cls]
             cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
@@ -100,7 +101,8 @@ async def process_video(video_id: str, video_path: Path):
             
             # Draw bounding boxes
             for box, score, cls in zip(boxes, scores, classes):
-                x_min, y_min, x_max, y_max = box
+                # Ensure coordinates are integers
+                x_min, y_min, x_max, y_max = map(int, box)
                 label = f"{CLASS_NAMES[int(cls)]}: {score:.2f}"
                 color = COLORS[int(cls)]
                 cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)

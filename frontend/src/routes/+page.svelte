@@ -282,21 +282,6 @@
       </button>
     </div>
 
-    <div class="detections-container">
-      <h3>Detections ({detections.length})</h3>
-      {#if detections.length > 0}
-        <ul class="detection-list">
-          {#each detections as detection}
-            <li>
-              <span class="label">{detection.label}</span>
-              <span class="score">Confidence: {(detection.score * 100).toFixed(1)}%</span>
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p>No objects detected</p>
-      {/if}
-    </div>
   {:else if activeTab === 'upload'}
     <VideoUpload />
   {/if}
@@ -445,43 +430,11 @@
     background-color: #f44336;
   }
 
-  .detections-container {
-    border: 1px solid #ccc;
-    padding: 15px;
-    border-radius: 5px;
-    background-color: #f9f9f9;
-  }
-
-  .detections-container h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-  }
-
-  .detection-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .detection-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-  }
-
-  .detection-list li:last-child {
-    border-bottom: none;
-  }
-
   .label {
     font-weight: bold;
     text-transform: capitalize;
   }
 
-  .score {
-    color: #666;
-  }
 
   @media (max-width: 768px) {
     .video-container {

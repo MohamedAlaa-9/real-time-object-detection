@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import atexit
 import shutil
+import torch
 from prometheus_client import Counter, Histogram, start_http_server
 
 # Setup logging
@@ -37,7 +38,7 @@ YOLO11_MODEL_PATH = BASE_DIR / 'yolo11n.pt'   # Pre-trained base YOLO11 model
 # Flag to determine which model to use
 use_pytorch = False
 model = None # Initialize model variable
-input_h, input_w = 640, 640 # Default YOLO input size
+input_h, input_w = 384, 640  # Reduced size for lower memory usage
 model_source = ""  # Track which model we're using
 
 # Function to download and save a model using ultralytics
@@ -82,6 +83,17 @@ def download_model(model_name, save_path):
 # --- Load PyTorch Model Directly ---
 try:
     from ultralytics import YOLO
+    
+    # Enable memory-efficient inference with torch
+    torch.set_grad_enabled(False)  # Disable gradient calculation
+    # Set lower precision to reduce memory usage
+    if torch.cuda.is_available():
+        torch.cuda.set_device(0)  # Use first GPU
+        # Use half precision if CUDA is available
+        torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    else:
+        # Force CPU inference with optimized settings
+        torch.set_num_threads(1)  # Reduce number of threads
     
     # First try to load our fine-tuned model
     if FINE_TUNED_MODEL_PATH.exists():
@@ -155,8 +167,11 @@ def infer(frame: np.ndarray):
         # --- PyTorch Inference Path ---
         try:
             with INFERENCE_TIME.time():
+                # Resize frame to reduce memory usage (if needed)
+                resized_frame = cv2.resize(frame, (input_w, input_h))
+                
                 # YOLO model processes the image internally
-                results = model(frame, conf=0.45, iou=0.5)[0]
+                results = model(resized_frame, conf=0.45, iou=0.45, verbose=False)[0]
                 
             with POSTPROCESS_TIME.time():
                 # Extract results from YOLO prediction
@@ -168,12 +183,28 @@ def infer(frame: np.ndarray):
                     scores = detections.conf.cpu().numpy().tolist()
                     classes = detections.cls.cpu().numpy().tolist()
                     classes = [int(cls) for cls in classes]  # Ensure integers
+                    
+                    # If we resized the frame, scale the boxes back to original size
+                    if frame.shape[1] != input_w or frame.shape[0] != input_h:
+                        scale_x = frame.shape[1] / input_w
+                        scale_y = frame.shape[0] / input_h
+                        for i in range(len(boxes)):
+                            boxes[i][0] *= scale_x  # x_min
+                            boxes[i][1] *= scale_y  # y_min
+                            boxes[i][2] *= scale_x  # x_max
+                            boxes[i][3] *= scale_y  # y_max
+                    
                     logger.info(f"PyTorch inference found {len(boxes)} objects.")
                 else:
                     boxes, scores, classes = [], [], []
                     logger.info("PyTorch inference: no objects detected.")
                     
             INFERENCE_COUNT.inc()
+            
+            # Clean up to reduce memory usage
+            del results
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
                 
         except Exception as e:
             logger.error(f"Error during PyTorch inference: {e}")
@@ -188,7 +219,9 @@ def infer(frame: np.ndarray):
 # --- Cleanup function ---
 def cleanup():
     logger.info("Releasing resources... (No specific cleanup needed for PyTorch model)")
-    pass
+    # Clean up GPU memory if available
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 atexit.register(cleanup)
 
