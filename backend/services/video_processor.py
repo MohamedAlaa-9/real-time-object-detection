@@ -15,16 +15,24 @@ if project_root not in sys.path:
 # Import logger first
 from backend.core.config import logger, CLASS_NAMES, COLORS, RESULTS_DIR
 
-# Use real inference - don't fall back to mock
+# Try loading real inference with improved error handling
 try:
-    from ml_models.inference import infer
+    from ml_models.inference import infer, model_source, use_pytorch, use_onnx
+    
+    inference_type = "Unknown"
+    if use_onnx:
+        inference_type = "ONNX"
+    elif use_pytorch:
+        inference_type = "PyTorch"
+    
     using_real_inference = True
-    logger.info("Successfully loaded real inference engine")
+    logger.info(f"Successfully loaded real inference engine using {model_source} model ({inference_type})")
 except Exception as e:
     logger.error(f"Error importing real inference engine: {e}")
     from backend.services.mock_inference import infer
     using_real_inference = False
-    logger.warning("Using mock inference function - please check ml_models/inference.py")
+    logger.warning("Using mock inference function - objects will not be detected correctly")
+    logger.warning("To fix this, run: python ml_models/prepare_models.py --all")
 
 # Dictionary to track processing status
 video_processing_status = {}
@@ -57,9 +65,14 @@ async def process_frame(frame_data: str):
         return {
             "processed_frame": f"data:image/jpeg;base64,{encoded_frame}",
             "detections": [
-                {"box": box.tolist(), "score": float(score), "class_id": int(cls), "label": CLASS_NAMES[int(cls)]} 
+                {"box": box.tolist() if isinstance(box, np.ndarray) else box, 
+                 "score": float(score), 
+                 "class_id": int(cls), 
+                 "label": CLASS_NAMES[int(cls)]} 
                 for box, score, cls in zip(boxes, scores, classes)
-            ]
+            ],
+            "using_real_inference": using_real_inference,
+            "model_source": model_source if using_real_inference else "mock"
         }
     except Exception as e:
         logger.error(f"Error processing frame: {e}")
@@ -136,7 +149,9 @@ async def process_video(video_id: str, video_path: Path):
             "status": "completed", 
             "progress": 100,
             "output_path": str(output_path),
-            "thumbnail_path": str(thumbnail_path) if thumbnail_path.exists() else None
+            "thumbnail_path": str(thumbnail_path) if thumbnail_path.exists() else None,
+            "using_real_inference": using_real_inference,
+            "model_source": model_source if using_real_inference else "mock"
         }
         
     except Exception as e:
