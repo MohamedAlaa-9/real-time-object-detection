@@ -33,7 +33,6 @@ PROJECT_ROOT = BASE_DIR.parent
 # Model paths - check for fine-tuned model first, fallback to base model
 FINE_TUNED_MODEL_PATH = BASE_DIR / 'best.pt'  # Our symlink to the latest fine-tuned model
 YOLO11_MODEL_PATH = BASE_DIR / 'yolo11n.pt'   # Pre-trained base YOLO11 model
-YOLO8_MODEL_PATH = BASE_DIR / 'yolov8n.pt'    # Alternative pre-trained model
 
 # Flag to determine which model to use
 use_pytorch = False
@@ -47,7 +46,7 @@ def download_model(model_name, save_path):
     Download a model from ultralytics and save it to the specified path.
     
     Args:
-        model_name: Name of the model to download (e.g., "yolo11n.pt", "yolov8n.pt")
+        model_name: Name of the model to download (e.g., "yolo11n.pt")
         save_path: Path where to save the downloaded model
     
     Returns:
@@ -87,7 +86,7 @@ try:
     # First try to load our fine-tuned model
     if FINE_TUNED_MODEL_PATH.exists():
         try:
-            logger.info(f"Loading fine-tuned model from: {FINE_TUNED_MODEL_PATH}")
+            logger.info(f"Loading fine-tuned YOLOv11 model from: {FINE_TUNED_MODEL_PATH}")
             model = YOLO(str(FINE_TUNED_MODEL_PATH))
             # Verify model architecture (check if it's YOLOv11)
             model_type = getattr(model, 'type', 'unknown')
@@ -101,43 +100,29 @@ try:
             logger.error(f"Failed to load fine-tuned model: {e}")
             model = None
     
-    # If fine-tuned model failed, try the base YOLO11 model
+    # If fine-tuned model failed, use the base YOLO11 model from ultralytics
     if model is None:
         try:
             # Check if YOLO11 base model exists, download if not
             if not YOLO11_MODEL_PATH.exists():
-                logger.warning(f"YOLO11 base model not found at {YOLO11_MODEL_PATH}, attempting to download it")
+                logger.info(f"YOLO11 base model not found at {YOLO11_MODEL_PATH}, downloading from ultralytics")
                 if not download_model("yolo11n.pt", YOLO11_MODEL_PATH):
-                    logger.warning("Failed to download YOLO11 model, will try with YOLOv8")
+                    logger.error("Failed to download YOLO11 model from ultralytics.")
+                    exit(1)  # Exit if we can't load YOLOv11, as we don't want to fall back to YOLOv8
             
             # If the model exists now (either it was there or download succeeded)
             if YOLO11_MODEL_PATH.exists():
                 logger.info(f"Loading YOLO11 base model from: {YOLO11_MODEL_PATH}")
                 model = YOLO(str(YOLO11_MODEL_PATH))
-                model_source = "yolo11-base"
+                model_source = "yolo11-ultralytics"
                 use_pytorch = True
-                logger.info("Successfully loaded YOLO11 base model")
+                logger.info("Successfully loaded YOLO11 base model from ultralytics")
+            else:
+                logger.error("YOLO11 model not available and could not be downloaded.")
+                exit(1)
         except Exception as e:
             logger.error(f"Failed to load YOLO11 base model: {e}")
-            model = None
-    
-    # Final fallback to YOLO8 model
-    if model is None:
-        logger.info(f"Attempting to load YOLO8 model: {YOLO8_MODEL_PATH}")
-        try:
-            # Try to download if it doesn't exist
-            if not YOLO8_MODEL_PATH.exists():
-                logger.warning(f"YOLO8 model not found, attempting to download it")
-                download_model("yolov8n.pt", YOLO8_MODEL_PATH)
-            
-            # Now load the model (either existing or newly downloaded)
-            model = YOLO(str(YOLO8_MODEL_PATH))
-            model_source = "yolo8-fallback"
-            use_pytorch = True
-            logger.info("Successfully loaded YOLO8 fallback model")
-        except Exception as e:
-            logger.error(f"Failed to load YOLO8 model: {e}")
-            exit(1)
+            exit(1)  # Exit if we can't load YOLOv11, as we don't want any other fallback
     
 except ImportError:
     logger.error("Failed to import ultralytics. Please install it with 'pip install ultralytics'")
