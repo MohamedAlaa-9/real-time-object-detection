@@ -17,7 +17,10 @@ from backend.core.config import logger, CLASS_NAMES, COLORS, RESULTS_DIR
 
 # Try loading real inference with improved error handling
 try:
-    from ml_models.inference import infer, model_source, use_pytorch, use_onnx
+    from ml_models.inference import infer, model_source, use_pytorch, use_onnx, get_class_names
+    
+    # Update class names to use those from the inference module
+    model_class_names = get_class_names()
     
     inference_type = "Unknown"
     if use_onnx:
@@ -31,6 +34,7 @@ except Exception as e:
     logger.error(f"Error importing real inference engine: {e}")
     from backend.services.mock_inference import infer
     using_real_inference = False
+    model_class_names = CLASS_NAMES  # Fallback to config class names
     logger.warning("Using mock inference function - objects will not be detected correctly")
     logger.warning("To fix this, run: python ml_models/prepare_models.py --all")
 
@@ -53,8 +57,14 @@ async def process_frame(frame_data: str):
         for box, score, cls in zip(boxes, scores, classes):
             # Ensure coordinates are integers
             x_min, y_min, x_max, y_max = map(int, box)
-            label = f"{CLASS_NAMES[cls]}: {score:.2f}"
-            color = COLORS[cls]
+            class_idx = int(cls)
+            # Use model class names if available, otherwise fall back to config
+            if class_idx < len(model_class_names):
+                label = f"{model_class_names[class_idx]}: {score:.2f}"
+            else:
+                label = f"Class {class_idx}: {score:.2f}"
+                
+            color = COLORS[class_idx % len(COLORS)]
             cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
             cv2.putText(frame, label, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         
@@ -68,7 +78,7 @@ async def process_frame(frame_data: str):
                 {"box": box.tolist() if isinstance(box, np.ndarray) else box, 
                  "score": float(score), 
                  "class_id": int(cls), 
-                 "label": CLASS_NAMES[int(cls)]} 
+                 "label": model_class_names[int(cls)] if int(cls) < len(model_class_names) else f"Class {int(cls)}"} 
                 for box, score, cls in zip(boxes, scores, classes)
             ],
             "using_real_inference": using_real_inference,
@@ -116,8 +126,14 @@ async def process_video(video_id: str, video_path: Path):
             for box, score, cls in zip(boxes, scores, classes):
                 # Ensure coordinates are integers
                 x_min, y_min, x_max, y_max = map(int, box)
-                label = f"{CLASS_NAMES[int(cls)]}: {score:.2f}"
-                color = COLORS[int(cls)]
+                class_idx = int(cls)
+                # Use model class names if available
+                if class_idx < len(model_class_names):
+                    label = f"{model_class_names[class_idx]}: {score:.2f}"
+                else:
+                    label = f"Class {class_idx}: {score:.2f}"
+                    
+                color = COLORS[class_idx % len(COLORS)]
                 cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
                 cv2.putText(frame, label, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
             

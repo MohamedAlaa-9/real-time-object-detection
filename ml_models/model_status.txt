@@ -1,0 +1,4 @@
+model_source=yolo11n-onnx
+use_onnx=True
+use_pytorch=False
+using_official_yolo11=True

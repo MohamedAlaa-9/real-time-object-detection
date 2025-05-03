@@ -3,7 +3,6 @@ import numpy as np
 import logging
 from pathlib import Path
 import atexit
-import shutil
 import torch
 import os
 from prometheus_client import Counter, Histogram, start_http_server
@@ -33,8 +32,7 @@ except OSError as e:
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 
-# Model paths - check for all model types
-FINE_TUNED_MODEL_PATH = BASE_DIR / 'best.pt'  # Our symlink to the latest fine-tuned model
+# Official YOLOv11 model paths
 YOLO11_MODEL_PATH = BASE_DIR / 'yolo11n.pt'   # Pre-trained base YOLO11 model
 YOLO11_ONNX_PATH = BASE_DIR / 'yolo11n.onnx'  # ONNX version of the base model
 
@@ -46,14 +44,24 @@ ort_session = None  # Initialize ONNX session
 input_h, input_w = 640, 640  # Standard YOLO input size
 model_source = ""  # Track which model we're using
 
-# Function to download and save a model using ultralytics
-def download_model(model_name, save_path):
+# COCO class names for the official YOLOv11 model
+COCO_CLASSES = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 
+    'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 
+    'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 
+    'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 
+    'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 
+    'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 
+    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 
+    'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 
+    'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 
+    'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+]
+
+# Function to download the official YOLOv11 model
+def download_model():
     """
-    Download a model from ultralytics and save it to the specified path.
-    
-    Args:
-        model_name: Name of the model to download (e.g., "yolo11n.pt")
-        save_path: Path where to save the downloaded model
+    Download the official YOLOv11 model from ultralytics.
     
     Returns:
         bool: True if successful, False otherwise
@@ -61,53 +69,37 @@ def download_model(model_name, save_path):
     try:
         from ultralytics import YOLO
         
-        logger.info(f"Downloading {model_name}...")
-        # This will download the model to cache
-        temp_model = YOLO(model_name)
+        logger.info("Downloading official YOLOv11n model...")
+        # This will download the model and use it directly
+        model = YOLO('yolo11n.pt')
         
-        # Check if download succeeded (should be in cache)
-        cache_dir = Path.home() / ".cache" / "ultralytics" / "models"
-        downloaded_model = cache_dir / model_name
+        # Save the model to our directory
+        model_path = BASE_DIR / 'yolo11n.pt'
+        model.save(model_path)
         
-        if downloaded_model.exists():
-            # Create directory if it doesn't exist
-            save_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Copy to our desired location
-            shutil.copy(downloaded_model, save_path)
-            logger.info(f"Model {model_name} downloaded and saved to {save_path}")
-            return True
-        else:
-            logger.error(f"Downloaded model not found at expected location: {downloaded_model}")
-            return False
-            
+        logger.info(f"Official YOLOv11n model saved to {model_path}")
+        return True
     except Exception as e:
-        logger.error(f"Error downloading model {model_name}: {e}")
+        logger.error(f"Error downloading official YOLOv11n model: {e}")
         return False
 
 # --- Export PyTorch model to ONNX ---
-def export_model_to_onnx(pt_model_path, onnx_model_path):
-    """Export PyTorch model to ONNX format"""
+def export_model_to_onnx():
+    """Export official YOLOv11 PyTorch model to ONNX format"""
     try:
         from ultralytics import YOLO
         
-        logger.info(f"Exporting {pt_model_path} to ONNX format...")
-        model = YOLO(str(pt_model_path))
+        logger.info(f"Exporting official YOLOv11n to ONNX format...")
+        model = YOLO('yolo11n.pt')
         success = model.export(format="onnx", imgsz=[input_h, input_w], simplify=True)
         
-        # The export function creates the file next to the original with .onnx extension
-        expected_path = pt_model_path.with_suffix('.onnx')
-        
-        if expected_path.exists() and onnx_model_path != expected_path:
-            # Move to the desired ONNX path if different
-            onnx_model_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(expected_path, onnx_model_path)
-            
-        if onnx_model_path.exists():
-            logger.info(f"Successfully exported to {onnx_model_path}")
+        # Move the exported model to our directory
+        onnx_path = YOLO11_ONNX_PATH
+        if onnx_path.exists():
+            logger.info(f"Successfully exported to {onnx_path}")
             return True
         else:
-            logger.error(f"ONNX export failed, file not found at {onnx_model_path}")
+            logger.error(f"ONNX export failed, file not found at {onnx_path}")
             return False
     
     except Exception as e:
@@ -117,84 +109,53 @@ def export_model_to_onnx(pt_model_path, onnx_model_path):
 # --- Try loading ONNX model first ---
 try:
     # Only import onnxruntime if we're going to use it
-    if YOLO11_ONNX_PATH.exists() or FINE_TUNED_MODEL_PATH.exists():
-        try:
-            import onnxruntime as ort
-            HAVE_ONNX = True
-            logger.info("ONNX Runtime imported successfully")
-        except ImportError:
-            logger.warning("ONNX Runtime not available. Install it with 'pip install onnxruntime' for faster inference.")
-            HAVE_ONNX = False
-    else:
+    try:
+        import onnxruntime as ort
+        HAVE_ONNX = True
+        logger.info("ONNX Runtime imported successfully")
+    except ImportError:
+        logger.warning("ONNX Runtime not available. Install it with 'pip install onnxruntime' for faster inference.")
         HAVE_ONNX = False
     
-    # First, check if we have the ONNX version of the fine-tuned model
-    fine_tuned_onnx = FINE_TUNED_MODEL_PATH.with_suffix('.onnx')
-    if HAVE_ONNX and fine_tuned_onnx.exists():
-        logger.info(f"Loading fine-tuned ONNX model from: {fine_tuned_onnx}")
-        providers = ['CPUExecutionProvider']
-        if 'CUDAExecutionProvider' in ort.get_available_providers():
-            providers.insert(0, 'CUDAExecutionProvider')
-            logger.info("Using CUDA for ONNX inference")
-            
-        ort_session = ort.InferenceSession(str(fine_tuned_onnx), providers=providers)
-        input_name = ort_session.get_inputs()[0].name
+    if HAVE_ONNX:
+        # Check if YOLO11n ONNX exists, if not try to export it
+        if not YOLO11_ONNX_PATH.exists():
+            # If PyTorch model exists, export it
+            if YOLO11_MODEL_PATH.exists():
+                logger.info("Exporting PyTorch model to ONNX...")
+                export_model_to_onnx()
+            else:
+                # Download the model first, then export
+                logger.info("Downloading YOLOv11n and exporting to ONNX...")
+                download_model()
+                export_model_to_onnx()
         
-        # Get input shape (might be dynamic)
-        input_shape = ort_session.get_inputs()[0].shape
-        input_h = input_shape[2] if isinstance(input_shape[2], int) else 640
-        input_w = input_shape[3] if isinstance(input_shape[3], int) else 640
-        
-        use_onnx = True
-        model_source = "fine-tuned-onnx"
-        logger.info(f"Successfully loaded fine-tuned ONNX model. Input shape: {input_h}x{input_w}")
-    
-    # If fine-tuned ONNX not available, try the base YOLO11 ONNX model
-    elif HAVE_ONNX and YOLO11_ONNX_PATH.exists():
-        logger.info(f"Loading base YOLO11 ONNX model from: {YOLO11_ONNX_PATH}")
-        providers = ['CPUExecutionProvider']
-        if 'CUDAExecutionProvider' in ort.get_available_providers():
-            providers.insert(0, 'CUDAExecutionProvider')
-            logger.info("Using CUDA for ONNX inference")
-            
-        ort_session = ort.InferenceSession(str(YOLO11_ONNX_PATH), providers=providers)
-        input_name = ort_session.get_inputs()[0].name
-        
-        # Get input shape (might be dynamic)
-        input_shape = ort_session.get_inputs()[0].shape
-        input_h = input_shape[2] if isinstance(input_shape[2], int) else 640
-        input_w = input_shape[3] if isinstance(input_shape[3], int) else 640
-        
-        use_onnx = True
-        model_source = "yolo11n-onnx"
-        logger.info(f"Successfully loaded base YOLO11 ONNX model. Input shape: {input_h}x{input_w}")
-        
-    # If we have PyTorch model but not ONNX, try to create ONNX model
-    elif HAVE_ONNX and not YOLO11_ONNX_PATH.exists() and YOLO11_MODEL_PATH.exists():
-        logger.info("Trying to create ONNX model from the base PyTorch model...")
-        if export_model_to_onnx(YOLO11_MODEL_PATH, YOLO11_ONNX_PATH):
-            # If export successful, try loading again
-            logger.info(f"Loading newly created ONNX model from: {YOLO11_ONNX_PATH}")
+        # Now try to load the ONNX model
+        if YOLO11_ONNX_PATH.exists():
+            logger.info(f"Loading official YOLOv11 ONNX model from: {YOLO11_ONNX_PATH}")
             providers = ['CPUExecutionProvider']
             if 'CUDAExecutionProvider' in ort.get_available_providers():
                 providers.insert(0, 'CUDAExecutionProvider')
+                logger.info("Using CUDA for ONNX inference")
                 
             ort_session = ort.InferenceSession(str(YOLO11_ONNX_PATH), providers=providers)
             input_name = ort_session.get_inputs()[0].name
+            
+            # Get input shape
             input_shape = ort_session.get_inputs()[0].shape
             input_h = input_shape[2] if isinstance(input_shape[2], int) else 640
             input_w = input_shape[3] if isinstance(input_shape[3], int) else 640
             
             use_onnx = True
             model_source = "yolo11n-onnx"
-            logger.info(f"Successfully loaded newly created ONNX model. Input shape: {input_h}x{input_w}")
+            logger.info(f"Successfully loaded official YOLOv11 ONNX model. Input shape: {input_h}x{input_w}")
         
 except Exception as e:
-    logger.warning(f"Failed to load ONNX model: {e}. Will try PyTorch instead.")
+    logger.warning(f"Failed to load official YOLOv11 ONNX model: {e}. Will try PyTorch instead.")
     use_onnx = False
     ort_session = None
 
-# --- Load PyTorch Model if ONNX fails ---
+# --- Load PyTorch Model if ONNX is not available ---
 if not use_onnx:
     try:
         from ultralytics import YOLO
@@ -211,44 +172,30 @@ if not use_onnx:
             torch.set_num_threads(1)  # Reduce number of threads
             logger.info("Using CPU for PyTorch inference")
         
-        # First try to load our fine-tuned model
-        if FINE_TUNED_MODEL_PATH.exists():
-            try:
-                logger.info(f"Loading fine-tuned YOLOv11 model from: {FINE_TUNED_MODEL_PATH}")
-                model = YOLO(str(FINE_TUNED_MODEL_PATH))
-                # Verify model architecture (check if it's YOLOv11)
-                model_type = getattr(model, 'type', 'unknown')
-                model_source = "fine-tuned-pytorch"
-                use_pytorch = True
-                logger.info(f"Successfully loaded fine-tuned YOLO model (type: {model_type})")
-            except Exception as e:
-                logger.error(f"Failed to load fine-tuned model: {e}")
-                model = None
-        
-        # If fine-tuned model failed, use the base YOLO11 model from ultralytics
-        if model is None:
-            try:
-                # Check if YOLO11 base model exists, download if not
-                if not YOLO11_MODEL_PATH.exists():
-                    logger.info(f"YOLO11 base model not found at {YOLO11_MODEL_PATH}, downloading from ultralytics")
-                    if not download_model("yolo11n.pt", YOLO11_MODEL_PATH):
-                        logger.error("Failed to download YOLO11 model from ultralytics.")
-                        # Don't exit, let the backend handle the failure and use mock inference
+        # Try to load the official YOLO11 model
+        try:
+            # Check if model exists, download if not
+            if not YOLO11_MODEL_PATH.exists():
+                logger.info("Downloading official YOLOv11n model...")
+                download_model()
                 
-                # If the model exists now (either it was there or download succeeded)
-                if YOLO11_MODEL_PATH.exists():
-                    logger.info(f"Loading YOLO11 base model from: {YOLO11_MODEL_PATH}")
-                    model = YOLO(str(YOLO11_MODEL_PATH))
-                    model_source = "yolo11n-pytorch"
-                    use_pytorch = True
-                    logger.info("Successfully loaded YOLO11 base model from ultralytics")
-                    
-                    # Optionally export to ONNX for future use
-                    if HAVE_ONNX and not YOLO11_ONNX_PATH.exists():
-                        export_model_to_onnx(YOLO11_MODEL_PATH, YOLO11_ONNX_PATH)
-            except Exception as e:
-                logger.error(f"Failed to load YOLO11 base model: {e}")
-                model = None
+            # Load the model
+            if YOLO11_MODEL_PATH.exists():
+                logger.info(f"Loading official YOLOv11n model from: {YOLO11_MODEL_PATH}")
+                model = YOLO(str(YOLO11_MODEL_PATH))
+                model_source = "yolo11n-pytorch"
+                use_pytorch = True
+                logger.info("Successfully loaded official YOLOv11n model")
+            else:
+                # If local file doesn't exist, load directly from ultralytics
+                logger.info("Loading official YOLOv11n model directly from ultralytics")
+                model = YOLO('yolo11n.pt')
+                model_source = "yolo11n-pytorch-direct"
+                use_pytorch = True
+                logger.info("Successfully loaded official YOLOv11n model directly")
+        except Exception as e:
+            logger.error(f"Failed to load official YOLOv11n model: {e}")
+            model = None
         
     except ImportError as e:
         logger.error(f"Failed to import ultralytics: {e}. Please install it with 'pip install ultralytics'")
@@ -342,7 +289,7 @@ def postprocess_onnx(outputs, orig_img_shape, conf_threshold=0.45, iou_threshold
 # --- Universal Inference Function ---
 def infer(frame: np.ndarray):
     """
-    Performs inference on a single frame using the best available engine.
+    Performs inference on a single frame using the official YOLOv11 model.
 
     Args:
         frame: The input image frame (NumPy array BGR).
@@ -420,6 +367,11 @@ def infer(frame: np.ndarray):
 
     return boxes, scores, classes
 
+# Function to get class names
+def get_class_names():
+    """Returns the class names for the model"""
+    return COCO_CLASSES
+
 # --- Cleanup function ---
 def cleanup():
     global ort_session, model
@@ -440,9 +392,10 @@ atexit.register(cleanup)
 if not use_onnx and not use_pytorch:
     logger.warning("No working inference engine found. Backend may fall back to mock inference.")
 else:
-    logger.info(f"Inference engine initialized using {model_source} model.")
+    logger.info(f"Inference engine initialized using official YOLOv11 model ({model_source}).")
     # Store model type info in a file for monitoring
     with open(BASE_DIR / "model_status.txt", "w") as f:
         f.write(f"model_source={model_source}\n")
         f.write(f"use_onnx={use_onnx}\n")
         f.write(f"use_pytorch={use_pytorch}\n")
+        f.write("using_official_yolo11=True\n")

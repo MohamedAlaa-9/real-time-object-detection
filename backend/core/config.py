@@ -19,13 +19,11 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
 # --- Model and Class Names Configuration ---
-# Check which model we're using to determine class names
-FINE_TUNED_MODEL_PATH = ML_MODELS_DIR / 'best.pt'
-KITTI_DATA_YAML = PROJECT_ROOT / "datasets" / "processed" / "data.yaml"
-MODEL_SOURCE = "unknown"
+# We're using the official YOLOv11 model with COCO classes only
+MODEL_SOURCE = "official-yolo11-coco"
 
-# Default COCO class names (used as fallback)
-COCO_CLASS_NAMES = [
+# COCO class names for the official YOLOv11 model
+CLASS_NAMES = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
     'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
     'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
@@ -36,28 +34,6 @@ COCO_CLASS_NAMES = [
     'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
     'hair drier', 'toothbrush'
 ]
-
-# Try to load KITTI class names from data.yaml
-KITTI_CLASS_NAMES = []
-if KITTI_DATA_YAML.exists():
-    try:
-        with open(KITTI_DATA_YAML, 'r') as f:
-            data_config = yaml.safe_load(f)
-            if 'names' in data_config:
-                KITTI_CLASS_NAMES = data_config['names']
-                logger.info(f"Loaded KITTI class names from {KITTI_DATA_YAML}: {KITTI_CLASS_NAMES}")
-    except Exception as e:
-        logger.error(f"Failed to load KITTI class names: {e}")
-
-# Determine which class names to use based on model
-if FINE_TUNED_MODEL_PATH.exists() and KITTI_CLASS_NAMES:
-    CLASS_NAMES = KITTI_CLASS_NAMES
-    MODEL_SOURCE = "fine-tuned-kitti"
-    logger.info("Using KITTI class names with fine-tuned model")
-else:
-    CLASS_NAMES = COCO_CLASS_NAMES
-    MODEL_SOURCE = "coco-default"
-    logger.info("Using COCO class names (default)")
 
 logger.info(f"Using {MODEL_SOURCE} model with {len(CLASS_NAMES)} classes")
 
