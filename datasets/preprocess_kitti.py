@@ -1,9 +1,9 @@
 import os
 import yaml
 import numpy as np
-import cv2  # Added missing import
+import cv2
 from pathlib import Path
-import random  # Import random for seed setting if needed, numpy is already imported
+import random
 from datasets.convert_kitti_to_yolo import convert_kitti_to_yolo
 
 # Function to calculate Intersection over Union (IoU)
@@ -44,7 +44,7 @@ def calculate_iou(box1, box2):
     box1_area = w1 * h1
     box2_area = w2 * h2
 
-    # Calculate the union area
+    # Union area
     union_area = box1_area + box2_area - intersect_area
 
     # Calculate the IoU
@@ -59,20 +59,71 @@ for dir in [RAW_DIR, PROCESSED_DIR]:
     dir.mkdir(parents=True, exist_ok=True)
 
 def preprocess_kitti():
-    # Convert KITTI to YOLO format - updated paths to match your folder structure
-    kitti_images = RAW_DIR / "kitti/image"
-    kitti_labels = RAW_DIR / "kitti/lable"  # Note: using "lable" to match your folder name
+    """
+    Preprocess KITTI dataset: Convert to YOLO format and split into train/val sets.
+    The standard KITTI dataset structure is:
+    - training/image_2/*.png (images)
+    - training/label_2/*.txt (labels)
+    """
+    # Paths to the standard KITTI dataset structure
+    kitti_dir = RAW_DIR / "kitti"
+    kitti_images_dir = kitti_dir / "training" / "image_2"
+    kitti_labels_dir = kitti_dir / "training" / "label_2"
+    
+    # Check if standard KITTI paths exist
+    if not kitti_images_dir.exists() or not kitti_labels_dir.exists():
+        print(f"WARNING: Standard KITTI paths not found.")
+        print(f"Images directory: {kitti_images_dir} - exists: {kitti_images_dir.exists()}")
+        print(f"Labels directory: {kitti_labels_dir} - exists: {kitti_labels_dir.exists()}")
+        
+        # Try alternate path formats that might be present
+        alternate_paths = [
+            (kitti_dir / "image", kitti_dir / "label"),
+            (kitti_dir / "images", kitti_dir / "labels"),
+            (RAW_DIR / "image", RAW_DIR / "label"),
+            (RAW_DIR / "images", RAW_DIR / "labels")
+        ]
+        
+        found = False
+        for img_dir, lbl_dir in alternate_paths:
+            if img_dir.exists() and lbl_dir.exists():
+                kitti_images_dir = img_dir
+                kitti_labels_dir = lbl_dir
+                found = True
+                print(f"Using alternate KITTI paths:")
+                print(f"Images: {kitti_images_dir}")
+                print(f"Labels: {kitti_labels_dir}")
+                break
+                
+        if not found:
+            print("ERROR: Could not find valid KITTI data paths. Please check your dataset structure.")
+            return
 
     # Set a seed for reproducible train/val splits
     np.random.seed(42)
     print("Using random seed 42 for train/val split.")
 
-    image_files = list(kitti_images.glob("*.png"))
+    # Find all image files - try both png and jpg extensions
+    image_files = list(kitti_images_dir.glob("*.png"))
+    if not image_files:
+        image_files = list(kitti_images_dir.glob("*.jpg"))
+    
     print(f"Found {len(image_files)} images to process.")
+    if len(image_files) == 0:
+        print(f"ERROR: No images found in {kitti_images_dir}. Please check your dataset.")
+        return
 
+    # Create output directories
+    (PROCESSED_DIR / "train" / "images").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "train" / "labels").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "val" / "images").mkdir(parents=True, exist_ok=True)
+    (PROCESSED_DIR / "val" / "labels").mkdir(parents=True, exist_ok=True)
+    
+    # Process each image
+    processed_count = 0
     for img_file in image_files:
-        img, yolo_labels = convert_kitti_to_yolo(img_file, kitti_labels, PROCESSED_DIR)
-        if img is None:  # Check for None instead of truthiness
+        img, yolo_labels = convert_kitti_to_yolo(img_file, kitti_labels_dir, PROCESSED_DIR)
+        if img is None:
             continue
         
         # Check if we got any labels
@@ -104,13 +155,18 @@ def preprocess_kitti():
             cls_id, x_center, y_center, w_norm, h_norm = box
             yolo_labels.append(f"{int(cls_id)} {x_center} {y_center} {w_norm} {h_norm}")
         
-        # Save processed data
+        # Save processed data - Assign to train or val set
         split = "train" if np.random.rand() < 0.8 else "val"
-        (PROCESSED_DIR / split / "images").mkdir(parents=True, exist_ok=True)
-        (PROCESSED_DIR / split / "labels").mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(PROCESSED_DIR / split / "images" / img_file.name), img)
         with open(PROCESSED_DIR / split / "labels" / f"{img_file.stem}.txt", "w") as f:
             f.write("\n".join(yolo_labels))
+        processed_count += 1
+        
+        if processed_count % 100 == 0:
+            print(f"Processed {processed_count} images...")
+    
+    print(f"Successfully processed {processed_count} images.")
+    print(f"Train/val data saved to {PROCESSED_DIR}")
 
 # Data config for YOLO
 def create_data_yaml():
@@ -118,14 +174,28 @@ def create_data_yaml():
     absolute_processed_path = str(PROCESSED_DIR.resolve())
     print(f"Using absolute path in data.yaml: {absolute_processed_path}")
 
+    # Count files in train and val directories to confirm data exists
+    train_img_count = len(list((PROCESSED_DIR / "train" / "images").glob("*.png")))
+    val_img_count = len(list((PROCESSED_DIR / "val" / "images").glob("*.png")))
+    
+    # Check for jpg files if png not found
+    if train_img_count == 0:
+        train_img_count = len(list((PROCESSED_DIR / "train" / "images").glob("*.jpg")))
+    if val_img_count == 0:
+        val_img_count = len(list((PROCESSED_DIR / "val" / "images").glob("*.jpg")))
+    
+    print(f"Train images: {train_img_count}, Val images: {val_img_count}")
+
     data_yaml = {
         "path": absolute_processed_path, # Use absolute path
         "train": "train/images",
         "val": "val/images",
         "names": ["pedestrian", "car", "cyclist", "van", "truck", "person_sitting", "tram", "misc"]
     }
+    
     with open(PROCESSED_DIR / "data.yaml", "w") as f:
         yaml.dump(data_yaml, f)
+    print(f"Created data.yaml with {len(data_yaml['names'])} classes at {PROCESSED_DIR / 'data.yaml'}")
 
 if __name__ == "__main__":
     preprocess_kitti()
