@@ -7,35 +7,35 @@ base_model: "./ml_models/yolo11n.pt" # Using the smaller nano model
 data_yaml: "./datasets/processed/data.yaml" # Path relative to project root, or absolute
 
 # Training Hyperparameters
-epochs: 1
-imgsz: 416 # Further reduced from 512 to save more memory
-batch: 1 # Minimum batch size to ensure training can proceed
-device: "0" # Use "cpu" or GPU index like "0", "0,1" etc.
-patience: 20 # Early stopping patience
+epochs: 50 # Increased for better model performance on the server
+imgsz: 640 # Standard YOLO image size for better accuracy on server
+batch: 8 # Increased for faster training on server GPU
+device: "0" # Use GPU for server deployment
+patience: 30 # Early stopping patience
 
 # Augmentation Settings
 augment: True
-mosaic: 0.0 # Disabled mosaic augmentation to save memory
-mixup: 0.0 # Disabled mixup augmentation to save memory
+mosaic: 0.5 # Re-enabled for better training results
+mixup: 0.1 # Re-enabled with small value for better training results
 hsv_h: 0.015
 hsv_s: 0.7
 hsv_v: 0.4
 
 # Output & Logging (Training)
 project: "runs/train" # Base directory for saving runs
-name: "yolov11_kitti_exp3" # New experiment name to avoid overwriting previous attempts
+name: "yolov11_kitti_production" # Production model name
 
 # --- Export Settings ---
 export:
   # Path to the trained .pt model to export.
-  trained_model_path: "runs/train/yolov11_kitti_exp3/weights/best.pt" # Updated to match new name
+  trained_model_path: "runs/train/yolov11_kitti_production/weights/best.pt" 
 
   # Output path for the ONNX model
   onnx_output_path: "ml_models/best.onnx" # Relative to project root
 
   # Export parameters
-  input_height: 416 # Reduced to match training size
-  input_width: 416 # Reduced to match training size
+  input_height: 640 # Standard size for better accuracy
+  input_width: 640 # Standard size for better accuracy
   opset_version: 12
   enable_dynamic_axes: True
   simplify_onnx: True

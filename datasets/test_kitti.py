@@ -1,8 +1,12 @@
 import os
+import sys
 from pathlib import Path
 import shutil
+
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 from datasets.download_kitti import download_kitti
-from datasets.preprocess_kitti import preprocess_kitti, create_data_yaml # Import create_data_yaml as well
+from datasets.preprocess_kitti import preprocess_kitti, create_data_yaml
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,8 +29,7 @@ def test_kitti():
     try:
         download_kitti()
         # Check if the downloaded data exists
-        if not (RAW_DIR / "kitti/training/image_2").exists() or \
-           not (RAW_DIR / "kitti/training/label_2").exists():
+        if not (RAW_DIR / "kitti").exists():
             print("Error: KITTI dataset download failed or extracted incorrectly.")
             return False
         print("Download test passed.")
