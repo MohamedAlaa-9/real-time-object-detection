@@ -2,9 +2,11 @@ from ultralytics import YOLO
 import torch
 import yaml # Added for YAML loading
 import os
+import requests
 from pathlib import Path
 import logging
 import sys
+import shutil
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -42,11 +44,42 @@ with open(CONFIG_PATH, 'r') as f:
 base_model_path = PROJECT_ROOT / config['base_model']
 data_yaml_path = PROJECT_ROOT / config['data_yaml']
 
+# Function to download pre-trained model
+def download_pretrained_model(model_path):
+    """Download pre-trained YOLO model if it doesn't exist."""
+    model_name = model_path.name
+    logger.info(f"Model {model_name} not found. Attempting to download...")
+    
+    # Create directory if it doesn't exist
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Use YOLO's built-in download functionality
+        YOLO(model_name)
+        
+        # Copy the downloaded model to the desired location
+        # The model is typically downloaded to ~/.cache/ultralytics
+        cache_dir = Path.home() / ".cache" / "ultralytics" / "models"
+        downloaded_model = cache_dir / model_name
+        
+        if downloaded_model.exists():
+            shutil.copy(downloaded_model, model_path)
+            logger.info(f"Model {model_name} downloaded and copied to {model_path}")
+            return True
+        else:
+            logger.error(f"Downloaded model not found at {downloaded_model}")
+            return False
+    except Exception as e:
+        logger.error(f"Error downloading model: {e}")
+        return False
+
 # Validate paths
 if not base_model_path.exists():
-    logger.error(f"Error: Base model file not found at {base_model_path}")
-    # Potentially add logic to download a default model if needed
-    sys.exit(1)
+    logger.warning(f"Base model file not found at {base_model_path}")
+    # Download the model if it doesn't exist
+    if not download_pretrained_model(base_model_path):
+        logger.error("Failed to download the base model. Exiting.")
+        sys.exit(1)
 
 if not data_yaml_path.exists():
     logger.error(f"Error: data.yaml file not found at {data_yaml_path}")
@@ -54,7 +87,7 @@ if not data_yaml_path.exists():
     sys.exit(1)
 
 # --- Model Initialization ---
-model = YOLO("ml_models/yolo11n.pt")
+model = YOLO(str(base_model_path))
 
 # --- Training Arguments from Config ---
 # Select relevant keys for model.train()
@@ -108,11 +141,59 @@ def run_training():
     best_model_path = Path(results.save_dir) / 'weights/best.pt'
     if best_model_path.exists():
         logger.info(f"Best model saved at: {best_model_path}")
+        
+        # Update export configuration to use this trained model
+        update_export_config(best_model_path)
+        
+        # Create a symlink to make model available for inference
+        create_inference_symlink(best_model_path)
     else:
         logger.warning("Warning: best.pt not found in the expected directory.")
     
     logger.info(f"Training completed. Results saved in: {results.save_dir}")
     return results, best_model_path
+
+def update_export_config(best_model_path):
+    """Update export configuration to use the newly trained model"""
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            current_config = yaml.safe_load(f)
+        
+        # Update the export section with the new model path
+        rel_path = str(best_model_path.relative_to(PROJECT_ROOT))
+        if 'export' in current_config:
+            current_config['export']['trained_model_path'] = rel_path
+            
+            with open(CONFIG_PATH, 'w') as f:
+                yaml.dump(current_config, f, default_flow_style=False)
+            
+            logger.info(f"Updated export configuration with new model path: {rel_path}")
+        else:
+            logger.warning("No 'export' section found in config. Export config not updated.")
+    except Exception as e:
+        logger.error(f"Failed to update export configuration: {e}")
+
+def create_inference_symlink(source_path):
+    """Create a symlink to the best model for the inference system"""
+    try:
+        # Define the symlink target path (match what the backend expects)
+        inference_model_path = PROJECT_ROOT / "ml_models" / "best.pt"
+        
+        # Remove existing symlink if it exists
+        if inference_model_path.exists() or inference_model_path.is_symlink():
+            inference_model_path.unlink()
+        
+        # Create the symlink
+        inference_model_path.symlink_to(source_path.resolve())
+        logger.info(f"Created symbolic link from {source_path} to {inference_model_path} for inference")
+    except Exception as e:
+        logger.error(f"Failed to create symbolic link for inference: {e}")
+        # As fallback, try to copy the file
+        try:
+            shutil.copy(source_path, inference_model_path)
+            logger.info(f"Copied {source_path} to {inference_model_path} for inference (symlink failed)")
+        except Exception as copy_error:
+            logger.error(f"Failed to copy model for inference: {copy_error}")
 
 # Run with or without MLflow based on availability and connectivity
 if MLFLOW_AVAILABLE:
