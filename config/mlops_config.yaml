@@ -1,0 +1,64 @@
+# MLOps Configuration for Real-Time Object Detection
+# This file configures the MLOps pipeline, monitoring, and retraining strategies
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: "http://localhost:5000"  # MLflow tracking server URI
+  experiment_name: "object_detection_monitoring"
+  register_model: true  # Whether to register models to MLflow Model Registry
+  log_artifacts: true   # Whether to log model artifacts
+
+# Model Monitoring Configuration
+monitoring:
+  metrics_endpoint: "http://localhost:8001"  # Prometheus metrics endpoint
+  performance_threshold:
+    min_map: 0.45        # Minimum acceptable mAP (mean Average Precision)
+    min_precision: 0.5   # Minimum precision score
+    min_recall: 0.5      # Minimum recall score
+    max_latency_ms: 100  # Maximum acceptable inference latency
+  drift_detection:
+    enabled: true
+    detection_window: 24  # Hours to aggregate data for drift detection
+    threshold: 0.15       # Maximum acceptable distribution shift before alerting
+
+# Model Retraining Configuration
+retraining:
+  schedule:
+    enabled: true
+    cron_expression: "0 0 * * 0"  # Weekly (Sunday at midnight)
+  triggers:
+    performance_drop:
+      enabled: true
+      threshold: 0.10     # Retrain if performance drops by 10%
+      window_hours: 24    # Minimum window to observe drop
+    drift_detected:
+      enabled: true
+      consecutive_alerts: 3  # Number of consecutive drift alerts before retraining
+
+# Data Collection for Retraining
+data_collection:
+  enabled: true
+  store_difficult_cases: true  # Save frames where model confidence is low
+  anonymize_data: true         # Apply anonymization to collected data
+  max_storage_gb: 10          # Maximum storage for collected data
+
+# Notification Configuration
+notifications:
+  email:
+    enabled: false
+    recipients: ["admin@example.com"]
+  slack:
+    enabled: false
+    webhook_url: ""
+
+# Hardware Monitoring
+hardware_monitoring:
+  enabled: true
+  metrics:
+    - gpu_utilization
+    - gpu_memory
+    - cpu_utilization
+    - memory_usage
+  alerts:
+    gpu_memory_threshold: 90  # Alert if GPU memory exceeds 90%
+    cpu_utilization_threshold: 95  # Alert if CPU utilization exceeds 95%

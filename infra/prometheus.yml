@@ -1,10 +1,60 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
 
+# Alerting rules
+rule_files:
+  # - "alert_rules.yml"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Scrape configuration
 scrape_configs:
+  # Object detection model metrics endpoint
   - job_name: "object_detection"
+    metrics_path: /metrics
     static_configs:
-      # Target the metrics endpoint exposed by inference.py (default port 8000)
-      # Set METRICS_ENDPOINT=host.docker.internal:8000 when running docker on mac/windows
+      # Target the metrics endpoint exposed by inference.py (default port 8001)
+      # Set METRICS_ENDPOINT=host.docker.internal:8001 when running docker on mac/windows
       # Or set to the appropriate service name/IP if using docker-compose/k8s
-      - targets: ["${METRICS_ENDPOINT:-localhost:8000}"]
+      - targets: ["${METRICS_ENDPOINT:-localhost:8001}"]
+        labels:
+          service: "object_detection"
+          component: "model"
+
+  # Backend application metrics
+  - job_name: "backend"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["${BACKEND_ENDPOINT:-localhost:8000}"]
+        labels:
+          service: "object_detection"
+          component: "backend"
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Node exporter for host metrics (if installed)
+  - job_name: "node"
+    static_configs:
+      - targets: ["${NODE_EXPORTER:-localhost:9100}"]
+        labels:
+          service: "object_detection"
+          component: "host"
+
+  # MLflow metrics (if available)
+  - job_name: "mlflow"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["${MLFLOW_ENDPOINT:-localhost:5000}"]
+        labels:
+          service: "object_detection" 
+          component: "mlops"

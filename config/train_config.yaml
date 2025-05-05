@@ -13,6 +13,13 @@ batch: 8 # Increased for faster training on server GPU
 device: "0" # Use GPU for server deployment
 patience: 30 # Early stopping patience
 
+# Fine-tuning specific parameters
+task: "detect"  # Detection task
+exist_ok: True  # Overwrite existing experiment 
+freeze: 10      # Freeze first 10 layers to preserve features from pre-trained model
+model_resume: True  # Resume from base_model weights entirely
+close_mosaic: 10  # Disable mosaic augmentation for final 10 epochs for stability
+
 # Augmentation Settings
 augment: True
 mosaic: 0.5 # Re-enabled for better training results

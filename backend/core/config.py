@@ -19,10 +19,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
 # --- Model and Class Names Configuration ---
-# We're using the official YOLOv11 model with COCO classes only
-MODEL_SOURCE = "official-yolo11-coco"
+# We're using YOLOv11 model with COCO classes only
+MODEL_SOURCE = "yoloV11"
 
-# COCO class names for the official YOLOv11 model
+# COCO class names for the YOLOv11 model
 CLASS_NAMES = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
     'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
