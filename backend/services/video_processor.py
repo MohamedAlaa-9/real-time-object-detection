@@ -32,9 +32,6 @@ try:
     logger.info(f"Successfully loaded real inference engine using {model_source} model ({inference_type})")
 except Exception as e:
     logger.error(f"Error importing real inference engine: {e}")
-    from backend.services.mock_inference import infer
-    using_real_inference = False
-    model_class_names = CLASS_NAMES  # Fallback to config class names
     logger.warning("Using mock inference function - objects will not be detected correctly")
     logger.warning("To fix this, run: python ml_models/prepare_models.py --all")
 
