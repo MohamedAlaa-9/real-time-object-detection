@@ -47,7 +47,7 @@ scrape_configs:
   - job_name: "backend"
     metrics_path: /metrics
     static_configs:
-      - targets: ["${BACKEND_ENDPOINT:-localhost:8000}"]
+      - targets: ["${BACKEND_ENDPOINT:-localhost:8081}"]
         labels:
           service: "object_detection"
           component: "backend"
