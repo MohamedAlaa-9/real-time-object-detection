@@ -103,8 +103,8 @@ def convert_kitti_to_yolo(img_file, kitti_labels, PROCESSED_DIR):
 
 if __name__ == "__main__":
     # Example usage (replace with your actual paths)
-    img_file = Path("datasets/raw/kitti/image/000000.png") 
-    kitti_labels = Path("datasets/raw/kitti/lable")  # Note: using "lable" to match folder name
+    img_file = Path("datasets/raw/kitti/image_2/000000.png") 
+    kitti_labels = Path("datasets/raw/kitti/lable_2")  # Note: using "lable" to match folder name
     PROCESSED_DIR = Path("datasets/processed")
     img, yolo_labels = convert_kitti_to_yolo(img_file, kitti_labels, PROCESSED_DIR)
     print(f"YOLO labels: {yolo_labels}")
