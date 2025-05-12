@@ -1,7 +1,7 @@
 # Training and Export Configuration for YOLOv11 on KITTI
 
 # Model Selection (Training)
-base_model: "./ml_models/yolo11n.pt" # Using the smaller nano model
+base_model: "./ml_models/models/yolo11n.pt" # Using the smaller nano model
 
 # Dataset
 data_yaml: "./datasets/processed/data.yaml" # Path relative to project root, or absolute
@@ -38,7 +38,7 @@ export:
   trained_model_path: "runs/train/yolov11_kitti_production/weights/best.pt" 
 
   # Output path for the ONNX model
-  onnx_output_path: "ml_models/best.onnx" # Relative to project root
+  onnx_output_path: "ml_models/models/best.onnx" # Relative to project root
 
   # Export parameters
   input_height: 640 # Standard size for better accuracy
