@@ -44,7 +44,7 @@ az vm create \
   --public-ip-sku Standard
 
 # Open ports for the application
-az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 8000 --priority 1001
+az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 8081 --priority 1001
 az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 3000 --priority 1002
 az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 5000 --priority 1003
 az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 9090 --priority 1004
@@ -147,7 +147,7 @@ services:
   app:
     image: objectdetectionacr.azurecr.io/object-detection:latest
     ports:
-      - "8000:8000"
+      - "8081:8081"
     volumes:
       - ./data:/app/data
       - ./ml_models:/app/ml_models
@@ -255,11 +255,11 @@ docker-compose ps
 
 ### 4.2. Access the Application
 
-- Backend API: http://<your-vm-ip>:8000
-- Frontend: http://<your-vm-ip>:8000 (served by the backend)
-- Grafana: http://<your-vm-ip>:3000 (login: admin/admin)
-- Prometheus: http://<your-vm-ip>:9090
-- MLflow: http://<your-vm-ip>:5000
+- Backend API: http://YOUR-VM-IP:8081
+- Frontend: http://YOUR-VM-IP:8081 (served by the backend)
+- Grafana: http://YOUR-VM-IP:3000 (login: admin/admin)
+- Prometheus: http://YOUR-VM-IP:9090
+- MLflow: http://YOUR-VM-IP:5000
 
 ## 5. Setting Up CI/CD with GitHub Actions
 

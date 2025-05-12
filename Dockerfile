@@ -34,10 +34,14 @@ RUN npm install
 RUN npm run build
 
 # Expose port for backend API
-EXPOSE 8000
+EXPOSE 8081
 
 # Return to app root directory
 WORKDIR /app
+
+# Copy frontend build to a directory that can be served by the backend
+RUN mkdir -p backend/static
+RUN cp -r frontend/dist/* backend/static/
 
 # Command to run the backend service
 CMD ["python3", "backend/main.py"]

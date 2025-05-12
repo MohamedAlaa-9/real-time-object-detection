@@ -21,6 +21,21 @@ echo -e "${BLUE}=== Real-Time Object Detection System Startup ===${NC}"
 echo -e "${YELLOW}Checking required packages...${NC}"
 pip install -r requirements.txt
 
+# 1.1. Check and build frontend if needed
+if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+    echo -e "${YELLOW}Checking frontend build...${NC}"
+    if [ ! -d "frontend/dist" ] || [ "$(find frontend/src -type f -newer frontend/dist -print -quit)" ]; then
+        echo -e "${YELLOW}Building frontend...${NC}"
+        cd frontend
+        npm install
+        npm run build
+        cd ..
+        echo -e "${GREEN}Frontend built successfully.${NC}"
+    else
+        echo -e "${GREEN}Frontend already built.${NC}"
+    fi
+fi
+
 # 2. Process dataset if needed
 if [ ! -f "datasets/data.yaml" ]; then
     echo -e "${YELLOW}Processing dataset...${NC}"
@@ -56,7 +71,7 @@ export MLFLOW_TRACKING_URI=http://localhost:5000
 export PROMETHEUS_MULTIPROC_DIR=/tmp
 
 # 6. Check if backend is already running
-BACKEND_RUNNING=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/health || echo "404")
+BACKEND_RUNNING=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/health || echo "404")
 if [ "$BACKEND_RUNNING" = "200" ]; then
     echo -e "${GREEN}Backend is already running.${NC}"
 else
@@ -94,7 +109,7 @@ echo -e "${BLUE}===================================================${NC}"
 echo -e "${GREEN}All services are now running!${NC}"
 echo -e "${BLUE}===================================================${NC}"
 echo -e "Access points:"
-echo -e "- Frontend/Backend: ${YELLOW}http://localhost:8000${NC}"
+echo -e "- Frontend/Backend: ${YELLOW}http://localhost:8081${NC}"
 echo -e "- MLflow: ${YELLOW}http://localhost:5000${NC}"
 echo -e "- Grafana: ${YELLOW}http://localhost:3000${NC} (login: admin/admin)"
 echo -e "- Prometheus: ${YELLOW}http://localhost:9090${NC}"

@@ -1,6 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+from pathlib import Path
 
 from backend.core.config import logger, API_HOST, API_PORT
 from backend.api.websocket import websocket_endpoint
@@ -28,10 +31,16 @@ app.add_websocket_route("/ws", websocket_endpoint)
 # Include routers
 app.include_router(video_router)
 
-@app.get("/", tags=["Health Check"])
-def read_root():
-    """API root endpoint for health checks"""
+@app.get("/api/health", tags=["Health Check"])
+def health_check():
+    """API health check endpoint"""
     return {"status": "online", "message": "Real-Time Object Detection API is running"}
+
+# Serve static frontend files if the directory exists
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists() and static_dir.is_dir():
+    logger.info(f"Serving frontend from {static_dir}")
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
 
 
 if __name__ == "__main__":

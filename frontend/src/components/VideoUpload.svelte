@@ -196,7 +196,7 @@
     </div>
   {/if}
   
-  {#if videoId && videoStatus}
+  {#if videoId && videoStatus && videoStatus !== 'completed'}
     <div class="processing-info">
       <h3>Processing Status</h3>
       <p class="status">Status: <span class={videoStatus}>{videoStatus}</span></p>
@@ -212,16 +212,23 @@
   
   {#if videoUrl && thumbnailUrl}
     <div class="result-container">
-      <h3>Processing Complete</h3>
+      <div class="success-banner">
+        <div class="success-icon">✓</div>
+        <h3>Processing Complete</h3>
+      </div>
       
-      <div class="video-preview">
-        <video controls src={videoUrl} poster={thumbnailUrl}>
-          Your browser does not support the video tag.
-        </video>
+      <div class="thumbnail-preview">
+        <img src={thumbnailUrl} alt="Video thumbnail" class="video-thumbnail" />
+        <div class="download-overlay">
+          <span class="download-hint">Click the button below to download your processed video</span>
+        </div>
       </div>
       
       <div class="video-actions">
-        <a href={videoUrl} download class="download-button">Download Processed Video</a>
+        <a href={videoUrl} download class="download-button">
+          <i class="download-icon">↓</i> Download Processed Video
+        </a>
+        <p class="mobile-hint">Tap and hold to download on mobile devices</p>
       </div>
     </div>
   {/if}
@@ -355,14 +362,69 @@
     margin-top: 20px;
   }
   
-  .video-preview {
-    margin: 15px 0;
+  .success-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background-color: #e8f5e9;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 5px solid #4CAF50;
   }
   
-  .video-preview video {
-    width: 100%;
+  .success-banner h3 {
+    margin: 0;
+    color: #2e7d32;
+  }
+  
+  .success-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  .thumbnail-preview {
+    margin: 15px 0;
+    position: relative;
     border-radius: 8px;
+    overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  
+  .video-thumbnail {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+  }
+  
+  .download-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-align: center;
+    padding: 0 20px;
+  }
+  
+  .download-hint {
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
   }
   
   .video-actions {
@@ -372,18 +434,28 @@
   }
   
   .download-button {
-    display: inline-block;
-    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 24px;
     background-color: #2196F3;
     color: white;
     text-decoration: none;
     border-radius: 4px;
     font-weight: bold;
-    transition: background-color 0.3s;
+    font-size: 16px;
+    transition: all 0.3s;
+    gap: 8px;
   }
   
   .download-button:hover {
     background-color: #0b7dda;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .download-icon {
+    font-size: 20px;
+    font-weight: bold;
   }
   
   .error-message {
@@ -393,5 +465,58 @@
     border-radius: 4px;
     margin: 15px 0;
     border-left: 4px solid #990000;
+  }
+  
+  .mobile-hint {
+    display: none;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+  }
+  
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .video-upload-container {
+      padding: 15px;
+      margin: 0 10px;
+    }
+    
+    h2, h3 {
+      font-size: 20px;
+    }
+    
+    .file-input-label, 
+    .upload-button, 
+    .download-button {
+      width: 100%;
+      max-width: 100%;
+      padding: 12px;
+      font-size: 16px;
+    }
+    
+    .success-banner {
+      flex-direction: column;
+      padding: 10px;
+      text-align: center;
+    }
+    
+    .download-hint {
+      font-size: 16px;
+    }
+    
+    .file-info {
+      max-width: 100%;
+    }
+    
+    .mobile-hint {
+      display: block;
+    }
+    
+    .download-button {
+      padding: 15px;
+      margin: 5px 0;
+    }
   }
 </style>

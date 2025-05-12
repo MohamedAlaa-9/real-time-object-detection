@@ -17,6 +17,9 @@
   let processingTime = 0;
   let detections = [];
   let errorMessage = null;
+  let videoDevices = [];
+  let currentDeviceId = '';
+  let loadingCamera = false;
 
   // Configuration
   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8081/ws';
@@ -120,12 +123,57 @@
     }
   }
 
-  // Initialize video stream from the webcam
-  async function initializeCamera() {
+  // Enumerate available video devices
+  async function enumerateVideoDevices() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 640, height: 480 } 
-      });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Available video devices:', videoDevices);
+      
+      // Set default device if not already set
+      if (!currentDeviceId && videoDevices.length > 0) {
+        currentDeviceId = videoDevices[0].deviceId;
+      }
+      
+      return videoDevices;
+    } catch (err) {
+      console.error('Error enumerating video devices:', err);
+      return [];
+    }
+  }
+  
+  // Initialize video stream from the webcam
+  async function initializeCamera(deviceId = null) {
+    try {
+      loadingCamera = true;
+      
+      // If a current stream exists, stop it
+      if (videoElement && videoElement.srcObject) {
+        const tracks = videoElement.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+      
+      // Get available devices if not already done
+      if (videoDevices.length === 0) {
+        await enumerateVideoDevices();
+      }
+      
+      const constraints = { 
+        video: {
+          width: 640,
+          height: 480
+        }
+      };
+      
+      // If specific device ID is provided, use it
+      if (deviceId) {
+        constraints.video.deviceId = { exact: deviceId };
+        currentDeviceId = deviceId;
+      } else if (currentDeviceId) {
+        constraints.video.deviceId = { exact: currentDeviceId };
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       videoElement.srcObject = stream;
       videoElement.play();
@@ -134,9 +182,43 @@
       processingContext = processingElement.getContext('2d');
       
       errorMessage = null;
+      loadingCamera = false;
     } catch (err) {
       errorMessage = `Camera access error: ${err.message}`;
       console.error('Camera initialization error:', err);
+      loadingCamera = false;
+    }
+  }
+  
+  // Switch to next available camera
+  async function switchCamera() {
+    if (loadingCamera) return;
+    
+    try {
+      // If no device list is available yet, enumerate devices
+      if (videoDevices.length === 0) {
+        await enumerateVideoDevices();
+      }
+      
+      if (videoDevices.length <= 1) {
+        errorMessage = "No additional cameras found on this device.";
+        return;
+      }
+      
+      // Find the index of the current device
+      const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
+      
+      // Calculate the next device index
+      const nextIndex = (currentIndex + 1) % videoDevices.length;
+      const nextDeviceId = videoDevices[nextIndex].deviceId;
+      
+      // Initialize with the next camera
+      await initializeCamera(nextDeviceId);
+      
+      console.log(`Switched to camera: ${videoDevices[nextIndex].label || 'Camera ' + (nextIndex + 1)}`);
+    } catch (err) {
+      errorMessage = `Failed to switch camera: ${err.message}`;
+      console.error('Camera switching error:', err);
     }
   }
 
@@ -183,9 +265,12 @@
   }
 
   // Component lifecycle
-  onMount(() => {
+  onMount(async () => {
     if (activeTab === 'camera') {
-      initializeCamera();
+      // First enumerate available devices
+      await enumerateVideoDevices();
+      // Then initialize camera with the first device
+      await initializeCamera();
       setupWebSocket();
     }
   });
@@ -205,6 +290,7 @@
 
 <svelte:head>
   <title>Real-Time Object Detection</title>
+  <meta name="description" content="Real-time object detection with camera and video upload capabilities" />
 </svelte:head>
 
 <main>
@@ -280,7 +366,20 @@
       <button on:click={setupWebSocket} disabled={isConnected}>
         Reconnect
       </button>
+      <button on:click={switchCamera} disabled={loadingCamera || videoDevices.length <= 1}>
+        {loadingCamera ? 'Switching...' : 'Switch Camera'}
+      </button>
     </div>
+
+    <!-- Display loading indicator or current camera info -->
+    {#if loadingCamera}
+      <div class="info-message">Switching cameras, please wait...</div>
+    {:else if videoDevices.length > 0}
+      <div class="camera-info">
+        Current camera: {videoDevices.find(d => d.deviceId === currentDeviceId)?.label || 'Default camera'} 
+        ({videoDevices.length} {videoDevices.length === 1 ? 'camera' : 'cameras'} available)
+      </div>
+    {/if}
 
   {:else if activeTab === 'upload'}
     <VideoUpload />
@@ -319,6 +418,7 @@
     cursor: pointer;
     transition: all 0.3s;
     margin: 0 10px;
+    min-height: 44px; /* Minimum tap target size for mobile */
   }
   
   .tabs button:hover {
@@ -329,6 +429,19 @@
     color: #2196F3;
     border-bottom: 3px solid #2196F3;
     background-color: transparent;
+  }
+  
+  @media (max-width: 480px) {
+    .tabs {
+      width: 100%;
+    }
+    
+    .tabs button {
+      flex: 1;
+      padding: 12px 8px;
+      margin: 0;
+      font-size: 14px;
+    }
   }
 
   .status-info {
@@ -368,6 +481,23 @@
     border-radius: 5px;
     border-left: 5px solid #990000;
   }
+  
+  .info-message {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border-left: 5px solid #0d47a1;
+    text-align: center;
+  }
+  
+  .camera-info {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #666;
+  }
 
   .video-container {
     display: flex;
@@ -397,6 +527,23 @@
     height: auto;
     background-color: #000;
     border-radius: 5px;
+  }
+  
+  @media (max-width: 480px) {
+    .video-wrapper {
+      min-width: unset;
+      padding: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .video-wrapper h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .video-container {
+      gap: 10px;
+    }
   }
 
   .controls {
@@ -439,6 +586,33 @@
   @media (max-width: 768px) {
     .video-container {
       flex-direction: column;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 15px;
+    }
+    
+    .controls {
+      flex-wrap: wrap;
+    }
+    
+    .controls button {
+      flex: 1 0 40%;
+      margin-bottom: 10px;
+      font-size: 14px;
+      padding: 8px 12px;
+    }
+    
+    .status-info {
+      padding: 8px 5px;
+    }
+    
+    .status-item {
+      font-size: 14px;
+      margin: 5px 0;
+      flex: 1 0 45%;
+      justify-content: center;
     }
   }
 </style>
