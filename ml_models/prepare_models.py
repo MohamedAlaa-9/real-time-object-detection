@@ -283,56 +283,86 @@ def display_summary(results):
 
 
 def main():
-    """Main function for model preparation."""
-    parser = argparse.ArgumentParser(description="Prepare models for inference")
-    parser.add_argument("--download", action="store_true", help="Download base YOLO11n model if not present")
-    parser.add_argument("--export", action="store_true", help="Export models to ONNX format")
-    parser.add_argument("--link", action="store_true", help="Find and link the latest fine-tuned model")
-    parser.add_argument("--verify", action="store_true", help="Verify all models can be loaded")
-    parser.add_argument("--all", action="store_true", help="Perform all preparation steps")
+    """Main entry point for the model preparation script."""
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--all", action="store_true", help="Prepare all models (both fine-tuned and base)")
+    parser.add_argument("--fine-tuned", action="store_true", help="Prepare only the fine-tuned model")
+    parser.add_argument("--base", action="store_true", help="Prepare only the base YOLOv11 model")
+    parser.add_argument("--verify", action="store_true", help="Only verify model loading without preparation")
     args = parser.parse_args()
     
-    # If no arguments provided, show help
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
+    # Handle the case where no arguments are provided - default to all
+    if not (args.all or args.fine_tuned or args.base or args.verify):
+        args.all = True
     
-    # Download base model if requested
-    if args.download or args.all:
-        if not HAS_ULTRALYTICS:
-            logger.error("Cannot download model: ultralytics package not available")
+    results = {
+        "yolo11n_pt": False, 
+        "yolo11n_onnx": False,
+        "fine_tuned_pt": False, 
+        "fine_tuned_onnx": False
+    }
+    
+    # If we're only verifying, skip preparation
+    if args.verify:
+        logger.info("Verifying model loading without preparation...")
+        verify_model_loading()
+        return
+    
+    # Prioritize fine-tuned model if requested or 'all' is specified
+    if args.all or args.fine_tuned:
+        logger.info("Preparing fine-tuned model...")
+        
+        # 1. Link the fine-tuned model or copy from the latest training run
+        if not FINE_TUNED_MODEL_PATH.exists():
+            results["fine_tuned_pt"] = link_fine_tuned_model()
         else:
-            download_yolo11n()
-    
-    # Link fine-tuned model if requested
-    if args.link or args.all:
-        link_fine_tuned_model()
-    
-    # Export to ONNX if requested
-    if args.export or args.all:
-        if not HAS_ULTRALYTICS:
-            logger.error("Cannot export model: ultralytics package not available")
-        else:
-            # Export base model to ONNX if it exists
-            if YOLO11_MODEL_PATH.exists():
-                export_to_onnx(YOLO11_MODEL_PATH, YOLO11_ONNX_PATH)
-            else:
-                logger.warning(f"Base model {YOLO11_MODEL_PATH} not found, cannot export to ONNX")
+            logger.info(f"Fine-tuned model already exists at {FINE_TUNED_MODEL_PATH}")
+            results["fine_tuned_pt"] = True
             
-            # Export fine-tuned model to ONNX if it exists
-            if FINE_TUNED_MODEL_PATH.exists() and not FINE_TUNED_MODEL_PATH.is_symlink():
-                export_to_onnx(FINE_TUNED_MODEL_PATH, FINE_TUNED_ONNX_PATH)
-            elif FINE_TUNED_MODEL_PATH.exists() and FINE_TUNED_MODEL_PATH.is_symlink():
-                # If it's a symlink, export directly from the target
-                target = FINE_TUNED_MODEL_PATH.resolve()
-                export_to_onnx(target, FINE_TUNED_ONNX_PATH)
-            else:
-                logger.warning(f"Fine-tuned model {FINE_TUNED_MODEL_PATH} not found, cannot export to ONNX")
+        # 2. Export the fine-tuned model to ONNX for faster inference
+        if results["fine_tuned_pt"]:
+            results["fine_tuned_onnx"] = export_to_onnx(FINE_TUNED_MODEL_PATH, FINE_TUNED_ONNX_PATH)
     
-    # Verify models if requested or if doing all steps
-    if args.verify or args.all:
-        results = verify_model_loading()
-        display_summary(results)
+    # Prepare base model if requested or if fine-tuned model preparation failed
+    if args.all or args.base or (args.fine_tuned and not results["fine_tuned_pt"]):
+        logger.info("Preparing base YOLOv11 model...")
+        
+        # 1. Download the base YOLO11n model if needed
+        if not YOLO11_MODEL_PATH.exists():
+            results["yolo11n_pt"] = download_yolo11n()
+        else:
+            logger.info(f"Base YOLO11n model already exists at {YOLO11_MODEL_PATH}")
+            results["yolo11n_pt"] = True
+        
+        # 2. Export base model to ONNX if needed
+        if results["yolo11n_pt"] and not YOLO11_ONNX_PATH.exists():
+            results["yolo11n_onnx"] = export_to_onnx(YOLO11_MODEL_PATH, YOLO11_ONNX_PATH)
+        elif YOLO11_ONNX_PATH.exists():
+            logger.info(f"YOLO11n ONNX model already exists at {YOLO11_ONNX_PATH}")
+            results["yolo11n_onnx"] = True
+    
+    # Verify the models can be loaded
+    if verify_model_loading():
+        logger.info("All models loaded successfully!")
+    else:
+        logger.warning("Some models could not be loaded. Check the logs for details.")
+    
+    # Display summary of the preparation process
+    display_summary(results)
+    
+    # Create a symlink for best.pt in the project root if it doesn't exist
+    project_best_path = PROJECT_ROOT / "best.pt"
+    if FINE_TUNED_MODEL_PATH.exists() and not project_best_path.exists():
+        try:
+            project_best_path.symlink_to(FINE_TUNED_MODEL_PATH)
+            logger.info(f"Created project root symlink to fine-tuned model: {project_best_path}")
+        except Exception as e:
+            logger.warning(f"Failed to create project root symlink: {e}")
+    
+    return results
 
 
 if __name__ == "__main__":

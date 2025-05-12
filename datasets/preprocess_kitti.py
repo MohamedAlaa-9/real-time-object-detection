@@ -167,37 +167,61 @@ def preprocess_kitti():
     
     print(f"Successfully processed {processed_count} images.")
     print(f"Train/val data saved to {PROCESSED_DIR}")
+    
+    # Create data.yaml file
+    create_data_yaml()
+    print("Created data.yaml file with class mappings.")
 
 # Data config for YOLO
 def create_data_yaml():
+    """Create data.yaml file for the processed dataset."""
     # Use absolute path for robustness
     absolute_processed_path = str(PROCESSED_DIR.resolve())
-    print(f"Using absolute path in data.yaml: {absolute_processed_path}")
+    
+    # Using full COCO class list and adding KITTI-specific classes at the end
+    coco_classes = [
+        'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+        'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+        'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+        'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+        'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+        'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+        'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+        'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+        'hair drier', 'toothbrush'
+    ]
+
+    # Add KITTI-specific classes
+    all_classes = coco_classes + ['cyclist', 'van', 'person_sitting', 'tram', 'misc']
 
     # Count files in train and val directories to confirm data exists
     train_img_count = len(list((PROCESSED_DIR / "train" / "images").glob("*.png")))
-    val_img_count = len(list((PROCESSED_DIR / "val" / "images").glob("*.png")))
+    train_img_count += len(list((PROCESSED_DIR / "train" / "images").glob("*.jpg")))
     
-    # Check for jpg files if png not found
-    if train_img_count == 0:
-        train_img_count = len(list((PROCESSED_DIR / "train" / "images").glob("*.jpg")))
-    if val_img_count == 0:
-        val_img_count = len(list((PROCESSED_DIR / "val" / "images").glob("*.jpg")))
+    val_img_count = len(list((PROCESSED_DIR / "val" / "images").glob("*.png")))
+    val_img_count += len(list((PROCESSED_DIR / "val" / "images").glob("*.jpg")))
     
     print(f"Train images: {train_img_count}, Val images: {val_img_count}")
 
-    data_yaml = {
-        "path": absolute_processed_path, # Use absolute path
-        "train": "train/images",
-        "val": "val/images",
-        "names": ["pedestrian", "car", "cyclist", "van", "truck", "person_sitting", "tram", "misc"]
+    data = {
+        'path': absolute_processed_path,
+        'train': 'train/images',
+        'val': 'val/images',
+        'names': all_classes
     }
+
+    # Save the data.yaml file in the processed directory
+    with open(PROCESSED_DIR / 'data.yaml', 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
     
-    with open(PROCESSED_DIR / "data.yaml", "w") as f:
-        yaml.dump(data_yaml, f)
-    print(f"Created data.yaml with {len(data_yaml['names'])} classes at {PROCESSED_DIR / 'data.yaml'}")
+    # Also save a copy at the datasets root for easier access
+    with open(BASE_DIR / 'data.yaml', 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+    print(f"Created data.yaml file at {PROCESSED_DIR / 'data.yaml'}")
+    print(f"Also created a copy at {BASE_DIR / 'data.yaml'}")
+    print(f"Dataset contains {len(all_classes)} classes")
 
 if __name__ == "__main__":
     preprocess_kitti()
-    create_data_yaml()
-    print("Datasets preprocessed and saved in", PROCESSED_DIR)
+    print("KITTI dataset preprocessing completed!")

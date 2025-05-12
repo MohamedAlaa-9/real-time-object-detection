@@ -31,8 +31,8 @@ def convert_kitti_to_yolo(img_file, kitti_labels, PROCESSED_DIR):
         print(f"Warning: Label file {label_file} does not exist. Skipping.")
         return img, []
     
-    # Define mapping from KITTI class names to YOLO class indices based on combined class list
-    # Map to COCO classes where possible, add new classes at the end (80+)
+    # Define mapping from KITTI class names to YOLO class indices based on COCO and KITTI-specific classes
+    # Using same mapping as in main_pipeline.py
     class_map = {
         "Pedestrian": 0,        # Map to 'person' in COCO
         "Car": 2,               # Map to 'car' in COCO
