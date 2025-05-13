@@ -22,7 +22,7 @@ RESULTS_DIR.mkdir(exist_ok=True)
 # We're using YOLOv11 model with COCO classes only
 MODEL_SOURCE = "yoloV11"
 
-# COCO class names for the YOLOv11 model
+# COCO class names for the YOLOv11 model, extended with common KITTI classes
 CLASS_NAMES = [
     'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
     'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
@@ -32,10 +32,16 @@ CLASS_NAMES = [
     'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
     'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
     'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-    'hair drier', 'toothbrush'
+    'hair drier', 'toothbrush', # End of COCO classes (index 79)
+    # KITTI-specific classes (ensure your model is trained with these indices)
+    'Cyclist',              # Index 80
+    'Van',                  # Index 81
+    'Person_sitting',       # Index 82
+    'Tram',                 # Index 83
+    'Misc'                  # Index 84
 ]
 
-logger.info(f"Using {MODEL_SOURCE} model with {len(CLASS_NAMES)} classes")
+logger.info(f"Using {MODEL_SOURCE} model with {len(CLASS_NAMES)} classes (COCO + KITTI extensions)")
 
 # Generate colors for visualizing each class
 import random

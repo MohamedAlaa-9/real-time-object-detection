@@ -23,30 +23,18 @@ pip install -r requirements.txt
 
 # 1.1. Check and build frontend if needed
 if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
-    echo -e "${YELLOW}Checking frontend build...${NC}"
-    if [ ! -d "frontend/dist" ] || [ "$(find frontend/src -type f -newer frontend/dist -print -quit)" ]; then
-        echo -e "${YELLOW}Building frontend...${NC}"
-        cd frontend
-        npm install
-        npm run build
-        cd ..
-        echo -e "${GREEN}Frontend built successfully.${NC}"
-    else
-        echo -e "${GREEN}Frontend already built.${NC}"
-    fi
+    echo -e "${YELLOW}Checking frontend dependencies and building if necessary...${NC}"
+    (cd frontend && npm install && npm run build)
+else
+    echo -e "${YELLOW}Frontend directory or package.json not found, skipping frontend build.${NC}"
 fi
 
-# 2. Process dataset if needed
-if [ ! -f "datasets/data.yaml" ]; then
-    echo -e "${YELLOW}Processing dataset...${NC}"
-    python datasets/preprocess_datasets.py
-else
-    echo -e "${GREEN}Dataset already processed.${NC}"
-fi
+# 2. Dataset processing step skipped as training pipeline is removed
+echo -e "${GREEN}Dataset processing step skipped as training pipeline is removed.${NC}"
 
 # 3. Prepare models
-echo -e "${YELLOW}Preparing models...${NC}"
-python ml_models/prepare_models.py --all
+echo -e "${YELLOW}Preparing models (ensuring base model and any user-provided model are ready)...${NC}"
+python ml_models/prepare_models.py
 
 # 4. Check if MLflow server is running
 MLFLOW_RUNNING=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/2.0/mlflow/experiments/list || echo "404")
@@ -121,4 +109,4 @@ echo -e "- Docker services: ${YELLOW}docker-compose -f infra/docker-compose.moni
 echo -e "${BLUE}===================================================${NC}"
 
 echo -e "${GREEN}Press Ctrl+C to stop this script (services will continue running in background).${NC}"
-wait 
+wait

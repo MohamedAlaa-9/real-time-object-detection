@@ -25,12 +25,11 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 MODELS_DIR = BASE_DIR / "models"
 
-
 # Define model paths
 YOLO11_MODEL_PATH = MODELS_DIR / 'yolo11n.pt'
 YOLO11_ONNX_PATH = MODELS_DIR / 'yolo11n.onnx'
 
-FINE_TUNED_MODEL_PATH = MODELS_DIR / 'best.pt'
+FINE_TUNED_MODEL_PATH = MODELS_DIR / 'best.pt'  # User is expected to place their model here
 FINE_TUNED_ONNX_PATH = MODELS_DIR / 'best.onnx'
 
 # Try importing required libraries
@@ -56,309 +55,151 @@ except ImportError:
 def download_yolo11n():
     """Download the YOLO11n model if it doesn't exist."""
     if YOLO11_MODEL_PATH.exists():
-        logger.info(f"Base YOLO11n model already exists at {YOLO11_MODEL_PATH}")
-        return True
+        logger.info(f"Model {YOLO11_MODEL_PATH} already exists.")
+        return
     
     try:
-        logger.info("Downloading YOLO11n model...")
-        model = YOLO("yolo11n.pt")
-        
-        # Check if download succeeded (model should now be accessible)
-        if not isinstance(model.model, torch.nn.Module):
-            logger.error("Failed to load YOLOv11n model")
-            return False
-        
-        # Save model to our target location
-        model.save(str(YOLO11_MODEL_PATH))
-        
-        if YOLO11_MODEL_PATH.exists():
-            logger.info(f"Successfully downloaded and saved YOLO11n model to {YOLO11_MODEL_PATH}")
-            return True
-        else:
-            logger.error(f"Model download appeared to succeed, but {YOLO11_MODEL_PATH} doesn't exist")
-            return False
-    
+        logger.info(f"Downloading YOLOv11n model to {YOLO11_MODEL_PATH}...")
+        if not HAS_ULTRALYTICS:
+            logger.error("Ultralytics library not found. Cannot download model.")
+            return
+        model = YOLO("yolov11n.pt")
+        logger.info("YOLOv11n model is available via Ultralytics cache or was pre-existing.")
+
     except Exception as e:
-        logger.error(f"Error downloading YOLO11n model: {e}")
-        return False
+        logger.error(f"Error downloading YOLOv11n model: {e}")
 
 
 def export_to_onnx(model_path, output_path=None, imgsz=640):
     """Export PyTorch model to ONNX format."""
+    if not HAS_ULTRALYTICS:
+        logger.error("Ultralytics library not found. Cannot export model.")
+        return
     if not model_path.exists():
-        logger.error(f"Source model {model_path} doesn't exist, cannot export to ONNX")
-        return False
+        logger.warning(f"Model path {model_path} does not exist. Attempting to load via YOLO.")
     
-    # If no output path provided, use the same name with .onnx extension
     if output_path is None:
-        output_path = model_path.with_suffix('.onnx')
+        output_path = model_path.with_suffix(".onnx")
     
     try:
-        logger.info(f"Exporting {model_path} to ONNX format...")
+        logger.info(f"Loading model {model_path} for ONNX export...")
         model = YOLO(str(model_path))
-        
-        success = model.export(format="onnx", imgsz=imgsz, simplify=True)
-        
-        # The export function creates the file with the same name but .onnx extension
-        expected_path = model_path.with_suffix('.onnx')
-        
-        if expected_path.exists() and expected_path != output_path:
-            logger.info(f"Moving {expected_path} to {output_path}")
-            shutil.move(expected_path, output_path)
-        
-        if output_path.exists():
-            logger.info(f"Successfully exported to {output_path}")
-            return True
-        else:
-            logger.error(f"ONNX export failed: {output_path} not created")
-            return False
+        logger.info(f"Exporting {model_path} to {output_path} with imgsz={imgsz}...")
+        model.export(format="onnx", imgsz=imgsz, opset=12, simplify=True, dynamic=True, path=str(output_path))
+        logger.info(f"Successfully exported model to {output_path}")
     
     except Exception as e:
-        logger.error(f"Error exporting model to ONNX: {e}")
-        return False
-
-
-def find_latest_trained_model():
-    """Find the latest fine-tuned model from the runs directory."""
-    runs_dir = PROJECT_ROOT / "runs" / "train"
-    if not runs_dir.exists():
-        logger.warning(f"Training directory {runs_dir} doesn't exist")
-        return None
-    
-    # Look for weight files in the runs directory
-    weight_files = []
-    for exp_dir in runs_dir.iterdir():
-        if exp_dir.is_dir():
-            weights_dir = exp_dir / "weights"
-            if weights_dir.exists():
-                for weight_file in weights_dir.glob("*.pt"):
-                    if weight_file.name in ["best.pt", "last.pt"]:
-                        weight_files.append((weight_file, weight_file.stat().st_mtime))
-    
-    if not weight_files:
-        logger.warning("No trained model weights found")
-        return None
-    
-    # Sort by modification time, newest first
-    weight_files.sort(key=lambda x: x[1], reverse=True)
-    latest_model = weight_files[0][0]
-    logger.info(f"Found latest trained model: {latest_model} (modified {time.ctime(weight_files[0][1])})")
-    
-    return latest_model
-
-
-def link_fine_tuned_model():
-    """Find and link the best fine-tuned model."""
-    latest_model = find_latest_trained_model()
-    
-    if not latest_model:
-        logger.warning("No fine-tuned model found")
-        return False
-    
-    try:
-        # If the target is already a symlink, remove it
-        if FINE_TUNED_MODEL_PATH.is_symlink() or FINE_TUNED_MODEL_PATH.exists():
-            FINE_TUNED_MODEL_PATH.unlink()
-        
-        # Create a symlink to the latest model
-        FINE_TUNED_MODEL_PATH.symlink_to(latest_model)
-        
-        if FINE_TUNED_MODEL_PATH.exists():
-            logger.info(f"Successfully linked {FINE_TUNED_MODEL_PATH} → {latest_model}")
-            return True
-        else:
-            logger.error(f"Failed to create symlink to {latest_model}")
-            return False
-    
-    except Exception as e:
-        logger.error(f"Error linking fine-tuned model: {e}")
-        return False
+        logger.error(f"Error exporting model {model_path} to ONNX: {e}")
+        logger.error("Ensure the model path is correct and the environment has necessary packages (torch, onnx, onnx-simplifier).")
 
 
 def verify_model_loading():
-    """Verify that models can be loaded."""
-    results = {
-        "yolo11n_pt": False,
-        "yolo11n_onnx": False,
-        "fine_tuned_pt": False,
-        "fine_tuned_onnx": False,
-    }
+    """Verify that the primary ONNX models can be loaded."""
+    logger.info("Verifying model loading...")
+    models_to_check = []
+    if FINE_TUNED_ONNX_PATH.exists():
+        models_to_check.append(FINE_TUNED_ONNX_PATH)
+    elif FINE_TUNED_MODEL_PATH.exists():
+        logger.warning(f"{FINE_TUNED_MODEL_PATH} exists but corresponding ONNX model {FINE_TUNED_ONNX_PATH} not found. Consider exporting.")
     
-    # Verify PyTorch models
-    if HAS_ULTRALYTICS:
-        # Test base YOLO11n model
-        if YOLO11_MODEL_PATH.exists():
+    if YOLO11_ONNX_PATH.exists():
+        models_to_check.append(YOLO11_ONNX_PATH)
+    elif YOLO11_MODEL_PATH.exists():
+         logger.warning(f"{YOLO11_MODEL_PATH} exists but corresponding ONNX model {YOLO11_ONNX_PATH} not found. Consider exporting.")
+
+    if not models_to_check:
+        logger.error("No primary ONNX models found to verify (e.g., best.onnx or yolo11n.onnx).")
+        return
+
+    if HAS_ONNX and ort:
+        for model_path in models_to_check:
             try:
-                model = YOLO(str(YOLO11_MODEL_PATH))
-                logger.info(f"Successfully loaded base YOLO11n model: {model.type}")
-                results["yolo11n_pt"] = True
+                logger.info(f"Attempting to load ONNX model: {model_path}")
+                ort_session = ort.InferenceSession(str(model_path), providers=ort.get_available_providers())
+                logger.info(f"Successfully loaded {model_path} with providers: {ort_session.get_providers()}")
+                for i, input_meta in enumerate(ort_session.get_inputs()):
+                    logger.info(f"  Input {i}: Name={input_meta.name}, Shape={input_meta.shape}, Type={input_meta.type}")
+                for i, output_meta in enumerate(ort_session.get_outputs()):
+                    logger.info(f"  Output {i}: Name={output_meta.name}, Shape={output_meta.shape}, Type={output_meta.type}")
+
             except Exception as e:
-                logger.error(f"Failed to load base YOLO11n model: {e}")
-        
-        # Test fine-tuned model
-        if FINE_TUNED_MODEL_PATH.exists():
-            try:
-                model = YOLO(str(FINE_TUNED_MODEL_PATH))
-                logger.info(f"Successfully loaded fine-tuned model: {model.type}")
-                results["fine_tuned_pt"] = True
-            except Exception as e:
-                logger.error(f"Failed to load fine-tuned model: {e}")
-    
-    # Verify ONNX models
-    if HAS_ONNX:
-        # Test base YOLO11n ONNX model
-        if YOLO11_ONNX_PATH.exists():
-            try:
-                session = ort.InferenceSession(str(YOLO11_ONNX_PATH), providers=['CPUExecutionProvider'])
-                logger.info(f"Successfully loaded base YOLO11n ONNX model")
-                results["yolo11n_onnx"] = True
-            except Exception as e:
-                logger.error(f"Failed to load base YOLO11n ONNX model: {e}")
-        
-        # Test fine-tuned ONNX model
-        if FINE_TUNED_ONNX_PATH.exists():
-            try:
-                session = ort.InferenceSession(str(FINE_TUNED_ONNX_PATH), providers=['CPUExecutionProvider'])
-                logger.info(f"Successfully loaded fine-tuned ONNX model")
-                results["fine_tuned_onnx"] = True
-            except Exception as e:
-                logger.error(f"Failed to load fine-tuned ONNX model: {e}")
-    
-    return results
+                logger.error(f"Failed to load ONNX model {model_path}: {e}")
+    elif not HAS_ONNX:
+        logger.warning("ONNX Runtime not available. Skipping ONNX model loading verification.")
+    logger.info("Model loading verification finished.")
 
 
 def display_summary(results):
-    """Display a summary of model preparation results."""
-    print("\n" + "=" * 60)
-    print(" MODEL PREPARATION SUMMARY ".center(60, "="))
-    print("=" * 60)
-    
-    # PyTorch models
-    print("\nPyTorch Models:")
-    print(f"  Base YOLO11n model: {'✅ Ready' if results['yolo11n_pt'] else '❌ Not available'}")
-    print(f"  Fine-tuned model:   {'✅ Ready' if results['fine_tuned_pt'] else '❌ Not available'}")
-    
-    # ONNX models
-    print("\nONNX Models:")
-    print(f"  Base YOLO11n model: {'✅ Ready' if results['yolo11n_onnx'] else '❌ Not available'}")
-    print(f"  Fine-tuned model:   {'✅ Ready' if results['fine_tuned_onnx'] else '❌ Not available'}")
-    
-    # Overall status
-    any_ready = any(results.values())
-    print("\nOverall Status:")
-    if any_ready:
-        print("  ✅ At least one model is ready for inference")
-        
-        # Determine fallback order
-        if results["fine_tuned_onnx"]:
-            print("  ➡️ System will use: Fine-tuned ONNX model (fast)")
-        elif results["fine_tuned_pt"]:
-            print("  ➡️ System will use: Fine-tuned PyTorch model")
-        elif results["yolo11n_onnx"]:
-            print("  ➡️ System will use: Base YOLO11n ONNX model")
-        elif results["yolo11n_pt"]:
-            print("  ➡️ System will use: Base YOLO11n PyTorch model")
-    else:
-        print("  ❌ No models are ready for inference")
-        print("  ⚠️ System will fall back to mock inference")
-    
-    print("\nNext Steps:")
-    if not any_ready:
-        print("  - Run this script with --download to get the base YOLO11n model")
-    elif not (results["fine_tuned_pt"] or results["fine_tuned_onnx"]):
-        print("  - Train a model with 'python ml_models/train_yolo.py'")
-        print("  - Or manually place a trained model at ml_models/best.pt")
-    elif not (results["fine_tuned_onnx"] or results["yolo11n_onnx"]):
-        print("  - Export to ONNX with --export for better performance")
-    else:
-        print("  - All models are prepared! Start the backend with:")
-        print("    python backend/main.py")
-    
-    print("=" * 60 + "\n")
+    """Display a summary of the model preparation steps."""
+    logger.info("--- Model Preparation Summary ---")
+    for key, value in results.items():
+        logger.info(f"{key}: {value}")
+    logger.info("-------------------------------")
 
 
 def main():
-    """Main entry point for the model preparation script."""
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("--all", action="store_true", help="Prepare all models (both fine-tuned and base)")
-    parser.add_argument("--fine-tuned", action="store_true", help="Prepare only the fine-tuned model")
-    parser.add_argument("--base", action="store_true", help="Prepare only the base YOLOv11 model")
-    parser.add_argument("--verify", action="store_true", help="Only verify model loading without preparation")
-    args = parser.parse_args()
-    
-    # Handle the case where no arguments are provided - default to all
-    if not (args.all or args.fine_tuned or args.base or args.verify):
-        args.all = True
-    
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
     results = {
-        "yolo11n_pt": False, 
-        "yolo11n_onnx": False,
-        "fine_tuned_pt": False, 
-        "fine_tuned_onnx": False,
+        "yolo11n_pt_available": False,
+        "yolo11n_onnx_exported_or_exists": False,
+        "fine_tuned_pt_exists": False,
+        "fine_tuned_onnx_exported_or_exists": False,
     }
-    
-    # If we're only verifying, skip preparation
-    if args.verify:
-        logger.info("Verifying model loading without preparation...")
-        verify_model_loading()
-        return
-    
-    # Prioritize fine-tuned model if requested or 'all' is specified
-    if args.all or args.fine_tuned:
-        logger.info("Preparing fine-tuned model...")
-        
-        # 1. Link the fine-tuned model or copy from the latest training run
-        if not FINE_TUNED_MODEL_PATH.exists():
-            results["fine_tuned_pt"] = link_fine_tuned_model()
-        else:
-            logger.info(f"Fine-tuned model already exists at {FINE_TUNED_MODEL_PATH}")
-            results["fine_tuned_pt"] = True
-            
-        # 2. Export the fine-tuned model to ONNX for faster inference
-        if results["fine_tuned_pt"]:
-            results["fine_tuned_onnx"] = export_to_onnx(FINE_TUNED_MODEL_PATH, FINE_TUNED_ONNX_PATH)
-    
-    # Prepare base model if requested or if fine-tuned model preparation failed
-    if args.all or args.base or (args.fine_tuned and not results["fine_tuned_pt"]):
-        logger.info("Preparing base YOLOv11 model...")
-        
-        # 1. Download the base YOLO11n model if needed
-        if not YOLO11_MODEL_PATH.exists():
-            results["yolo11n_pt"] = download_yolo11n()
-        else:
-            logger.info(f"Base YOLO11n model already exists at {YOLO11_MODEL_PATH}")
-            results["yolo11n_pt"] = True
-        
-        # 2. Export base model to ONNX if needed
-        if results["yolo11n_pt"] and not YOLO11_ONNX_PATH.exists():
-            results["yolo11n_onnx"] = export_to_onnx(YOLO11_MODEL_PATH, YOLO11_ONNX_PATH)
-        elif YOLO11_ONNX_PATH.exists():
-            results["yolo11n_onnx"] = True
-            logger.info(f"Base YOLO11n ONNX model already exists at {YOLO11_ONNX_PATH}")
-    
-    # Verify the models can be loaded
-    if verify_model_loading():
-        logger.info("All models loaded successfully!")
+    logger.info("Starting model preparation...")
+
+    if not YOLO11_MODEL_PATH.exists():
+        logger.info(f"{YOLO11_MODEL_PATH} not found. Ultralytics will attempt to download 'yolov11n.pt' upon use.")
     else:
-        logger.warning("Some models could not be loaded. Check the logs for details.")
-    
-    # Display summary of the preparation process
+        results["yolo11n_pt_available"] = True
+        logger.info(f"Base model {YOLO11_MODEL_PATH} found.")
+
+    pt_model_for_base_onnx = YOLO11_MODEL_PATH if YOLO11_MODEL_PATH.exists() else "yolov11n.pt"
+    export_needed = True
+    if YOLO11_ONNX_PATH.exists():
+        results["yolo11n_onnx_exported_or_exists"] = True
+        if YOLO11_MODEL_PATH.exists() and YOLO11_MODEL_PATH.stat().st_mtime <= YOLO11_ONNX_PATH.stat().st_mtime:
+            logger.info(f"ONNX model {YOLO11_ONNX_PATH} is up-to-date with {YOLO11_MODEL_PATH}.")
+            export_needed = False
+        elif not YOLO11_MODEL_PATH.exists():
+             logger.info(f"ONNX model {YOLO11_ONNX_PATH} exists. Corresponding .pt not found at {YOLO11_MODEL_PATH}, assuming ONNX is usable.")
+             export_needed = False
+
+    if export_needed:
+        logger.info(f"Exporting base model ({pt_model_for_base_onnx}) to ONNX at {YOLO11_ONNX_PATH}...")
+        export_to_onnx(pt_model_for_base_onnx, YOLO11_ONNX_PATH)
+        if YOLO11_ONNX_PATH.exists():
+            results["yolo11n_onnx_exported_or_exists"] = True
+
+    if FINE_TUNED_MODEL_PATH.exists():
+        logger.info(f"User-provided fine-tuned model {FINE_TUNED_MODEL_PATH} found.")
+        results["fine_tuned_pt_exists"] = True
+        
+        export_ft_needed = True
+        if FINE_TUNED_ONNX_PATH.exists():
+            results["fine_tuned_onnx_exported_or_exists"] = True
+            if FINE_TUNED_MODEL_PATH.stat().st_mtime <= FINE_TUNED_ONNX_PATH.stat().st_mtime:
+                logger.info(f"ONNX model {FINE_TUNED_ONNX_PATH} for fine-tuned model is up-to-date.")
+                export_ft_needed = False
+        
+        if export_ft_needed:
+            logger.info(f"Exporting {FINE_TUNED_MODEL_PATH} to ONNX at {FINE_TUNED_ONNX_PATH}...")
+            export_to_onnx(FINE_TUNED_MODEL_PATH, FINE_TUNED_ONNX_PATH)
+            if FINE_TUNED_ONNX_PATH.exists():
+                 results["fine_tuned_onnx_exported_or_exists"] = True
+    else:
+        logger.info(f"User-provided fine-tuned .pt model ({FINE_TUNED_MODEL_PATH}) not found. "
+                    f"If you have one, place it there. Otherwise, checking for existing {FINE_TUNED_ONNX_PATH}.")
+        if FINE_TUNED_ONNX_PATH.exists():
+            logger.info(f"User-provided fine-tuned .onnx model ({FINE_TUNED_ONNX_PATH}) found.")
+            results["fine_tuned_onnx_exported_or_exists"] = True
+
+    logger.info("Verifying loadable models...")
+    verify_model_loading() 
+
     display_summary(results)
-    
-    # Create a symlink for best.pt in the project root if it doesn't exist
-    project_best_path = PROJECT_ROOT / "best.pt"
-    if FINE_TUNED_MODEL_PATH.exists() and not project_best_path.exists():
-        try:
-            project_best_path.symlink_to(FINE_TUNED_MODEL_PATH)
-            logger.info(f"Created project root symlink to fine-tuned model: {project_best_path}")
-        except Exception as e:
-            logger.warning(f"Failed to create project root symlink: {e}")
-    
-    return results
+    logger.info("Model preparation finished.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     main()

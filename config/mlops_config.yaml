@@ -1,5 +1,5 @@
 # MLOps Configuration for Real-Time Object Detection
-# This file configures the MLOps pipeline, monitoring, and retraining strategies
+# This file configures the MLOps pipeline and monitoring
 
 # MLflow Configuration
 mlflow:
@@ -21,21 +21,7 @@ monitoring:
     detection_window: 24  # Hours to aggregate data for drift detection
     threshold: 0.15       # Maximum acceptable distribution shift before alerting
 
-# Model Retraining Configuration
-retraining:
-  schedule:
-    enabled: true
-    cron_expression: "0 0 * * 0"  # Weekly (Sunday at midnight)
-  triggers:
-    performance_drop:
-      enabled: true
-      threshold: 0.10     # Retrain if performance drops by 10%
-      window_hours: 24    # Minimum window to observe drop
-    drift_detected:
-      enabled: true
-      consecutive_alerts: 3  # Number of consecutive drift alerts before retraining
-
-# Data Collection for Retraining
+# Data Collection for Analysis (manual retraining)
 data_collection:
   enabled: true
   store_difficult_cases: true  # Save frames where model confidence is low
