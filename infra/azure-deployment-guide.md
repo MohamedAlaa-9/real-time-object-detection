@@ -15,14 +15,14 @@ This guide provides step-by-step instructions for deploying the real-time object
 
 ```bash
 # Create a resource group
-az group create --name object-detection-rg --location eastus
+az group create --name real-time-object-detection --location eastus
 ```
 
 ### 1.2. Create an Azure Container Registry (ACR)
 
 ```bash
 # Create a container registry
-az acr create --resource-group object-detection-rg --name objectdetectionacr --sku Standard --admin-enabled true
+az acr create --resource-group real-time-object-detection --name objectdetectionacr --sku Standard --admin-enabled true
 
 # Get the ACR credentials
 az acr credential show --name objectdetectionacr
@@ -35,8 +35,8 @@ Save the username and password for later use.
 ```bash
 # Create a GPU VM (NC-series with NVIDIA GPU)
 az vm create \
-  --resource-group object-detection-rg \
-  --name object-detection-vm \
+  --resource-group real-time-object-detection \
+  --name kazzaz \
   --image Canonical:UbuntuServer:18.04-LTS:latest \
   --admin-username azureuser \
   --generate-ssh-keys \
@@ -44,10 +44,10 @@ az vm create \
   --public-ip-sku Standard
 
 # Open ports for the application
-az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 8081 --priority 1001
-az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 3000 --priority 1002
-az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 5000 --priority 1003
-az vm open-port --resource-group object-detection-rg --name object-detection-vm --port 9090 --priority 1004
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 8081 --priority 1001
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 3000 --priority 1002
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 5000 --priority 1003
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 9090 --priority 1004
 ```
 
 ## 2. Setting Up the Virtual Machine
@@ -56,10 +56,10 @@ az vm open-port --resource-group object-detection-rg --name object-detection-vm 
 
 ```bash
 # Get the public IP address
-az vm show -d -g object-detection-rg -n object-detection-vm --query publicIps -o tsv
+az vm show -d -g real-time-object-detection -n kazzaz --query publicIps -o tsv
 
-# SSH into the VM
-ssh azureuser@<your-vm-ip>
+# SSH into the VM (IP: 40.76.126.51)
+ssh azureuser@40.76.126.51
 ```
 
 ### 2.2. Install NVIDIA Drivers and Docker
@@ -255,11 +255,11 @@ docker-compose ps
 
 ### 4.2. Access the Application
 
-- Backend API: http://YOUR-VM-IP:8081
-- Frontend: http://YOUR-VM-IP:8081 (served by the backend)
-- Grafana: http://YOUR-VM-IP:3000 (login: admin/admin)
-- Prometheus: http://YOUR-VM-IP:9090
-- MLflow: http://YOUR-VM-IP:5000
+- Backend API: http://40.76.126.51:8081
+- Frontend: http://40.76.126.51:8081 (served by the backend)
+- Grafana: http://40.76.126.51:3000 (login: admin/admin)
+- Prometheus: http://40.76.126.51:9090
+- MLflow: http://40.76.126.51:5000
 
 ## 5. Setting Up CI/CD with GitHub Actions
 
@@ -267,7 +267,7 @@ docker-compose ps
 
 ```bash
 # Create a service principal with contributor role
-az ad sp create-for-rbac --name "object-detection-ci-cd" --role contributor --scopes /subscriptions/<your-subscription-id>/resourceGroups/object-detection-rg --sdk-auth
+az ad sp create-for-rbac --name "object-detection-ci-cd" --role contributor --scopes /subscriptions/<your-subscription-id>/resourceGroups/real-time-object-detection --sdk-auth
 ```
 
 Save the output JSON for use in GitHub secrets.
@@ -280,8 +280,8 @@ In your GitHub repository, add these secrets:
 - `AZURE_REGISTRY`: The ACR login server (e.g., objectdetectionacr.azurecr.io)
 - `AZURE_USERNAME`: The ACR username
 - `AZURE_PASSWORD`: The ACR password
-- `AZURE_RESOURCE_GROUP`: object-detection-rg
-- `AZURE_VM_NAME`: object-detection-vm
+- `AZURE_RESOURCE_GROUP`: real-time-object-detection
+- `AZURE_VM_NAME`: kazzaz
 
 ### 5.3. Create GitHub Workflow
 
@@ -352,6 +352,12 @@ When you push changes to your main branch, the GitHub Actions workflow will auto
 ### 6.3. Manual Updates
 
 ```bash
+# SSH into the VM with IP 40.76.126.51
+ssh azureuser@40.76.126.51
+
+# Navigate to the project directory
+cd /home/azureuser/real-time-object-detection
+
 # Pull the latest code
 git pull
 
@@ -363,7 +369,69 @@ docker-compose down
 docker-compose up -d
 ```
 
-### 6.4. Backup MLflow Data
+### 6.4. Updating Monitoring Services
+
+If you need to update the monitoring setup:
+
+```bash
+# SSH into the VM
+ssh azureuser@40.76.126.51
+
+# Navigate to the project directory
+cd /home/azureuser/real-time-object-detection
+
+# Update monitoring configuration
+cp infra/monitoring_init.sh infra/monitoring_init.sh.bak  # Backup
+nano infra/monitoring_init.sh  # Edit configuration as needed
+
+# Run the updated monitoring script
+bash infra/monitoring_init.sh
+
+# Restart monitoring services
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+```
+
+### 6.5. Troubleshooting Monitoring Issues
+
+If you encounter issues with the monitoring services on the VM (IP: 40.76.126.51):
+
+```bash
+# Check if monitoring containers are running
+docker ps | grep -E 'prometheus|grafana|mlflow'
+
+# Check monitoring container logs
+docker logs $(docker ps -q -f name=prometheus)
+docker logs $(docker ps -q -f name=grafana)
+docker logs $(docker ps -q -f name=mlflow)
+
+# Verify Prometheus targets and metrics
+curl http://localhost:9090/api/v1/targets
+curl http://localhost:9090/api/v1/query?query=up
+
+# Verify Prometheus configuration
+docker exec -it $(docker ps -q -f name=prometheus) cat /etc/prometheus/prometheus.yml
+
+# Verify MLflow is functioning
+curl http://localhost:5000/api/2.0/mlflow/experiments/list
+
+# Check for data volume issues
+df -h
+du -sh mlruns/
+
+# Restart specific service if needed (example for Grafana)
+docker restart $(docker ps -q -f name=grafana)
+
+# Check if there are issues with model monitoring
+docker logs $(docker ps -q -f name=app)
+
+# Rebuild monitoring configuration if needed
+bash infra/monitoring_init.sh
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+```
+
+### 6.6. Backup MLflow Data
 
 ```bash
 # Backup MLflow data
@@ -410,13 +478,13 @@ For higher workloads, consider:
 
 ```bash
 # Stop the current VM
-az vm stop --resource-group object-detection-rg --name object-detection-vm
+az vm stop --resource-group real-time-object-detection --name kazzaz
 
 # Resize to a larger GPU VM
-az vm resize --resource-group object-detection-rg --name object-detection-vm --size Standard_NC12s_v3
+az vm resize --resource-group real-time-object-detection --name kazzaz --size Standard_NC12s_v3
 
 # Start the VM again
-az vm start --resource-group object-detection-rg --name object-detection-vm
+az vm start --resource-group real-time-object-detection --name kazzaz
 ```
 
 ## 9. Cleanup
@@ -425,7 +493,109 @@ When you no longer need the resources:
 
 ```bash
 # Delete the entire resource group
-az group delete --name object-detection-rg --yes
+az group delete --name real-time-object-detection --yes
 ```
 
-This will remove all resources including the VM, ACR, and associated networking components. 
+This will remove all resources including the VM, ACR, and associated networking components.
+
+## 10. Application Updates and Common Issues
+
+### 10.1. Updating the Application on VM (IP: 40.76.126.51)
+
+For a complete update of the application including code, models, and configuration:
+
+```bash
+# SSH into the VM
+ssh azureuser@40.76.126.51
+
+# Navigate to project directory
+cd /home/azureuser/real-time-object-detection
+
+# Pull latest code changes
+git pull
+
+# Stop the existing services
+docker-compose down
+
+# Rebuild the Docker image with latest code
+docker build -t objectdetectionacr.azurecr.io/object-detection:latest .
+
+# Push the updated image to ACR
+docker push objectdetectionacr.azurecr.io/object-detection:latest
+
+# Restart the application with the new image
+docker-compose up -d
+```
+
+### 10.2. Common Issues and Fixes
+
+#### GPU Not Available for Inference
+
+If NVIDIA GPU is not being detected:
+
+```bash
+# Verify NVIDIA drivers are properly installed
+nvidia-smi
+
+# Check if nvidia-docker is working correctly
+sudo docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu20.04 nvidia-smi
+
+# If there are issues, reinstall the NVIDIA Container Toolkit
+sudo apt-get purge -y nvidia-docker2
+sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+```
+
+#### Monitoring Pipeline Failures
+
+If the monitoring tools are not collecting metrics correctly:
+
+```bash
+# Check if MLflow, Prometheus, and Grafana are running
+docker ps | grep -E 'mlflow|prometheus|grafana'
+
+# Check Python package dependencies
+docker exec -it $(docker ps -q -f name=app) pip list | grep -E 'mlflow|psutil|pynvml'
+
+# Install missing packages if needed
+docker exec -it $(docker ps -q -f name=app) pip install mlflow psutil pynvml
+
+# Verify monitoring directories exist and have proper permissions
+docker exec -it $(docker ps -q -f name=app) ls -la /app/metrics
+docker exec -it $(docker ps -q -f name=app) mkdir -p /app/metrics
+
+# Restart monitoring services
+bash infra/monitoring_init.sh
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+```
+
+#### Model Drift Detection Issues
+
+If model drift detection is not working:
+
+```bash
+# Check if metrics files are being created
+docker exec -it $(docker ps -q -f name=app) ls -la /app/metrics
+
+# Manually trigger drift detection
+docker exec -it $(docker ps -q -f name=app) python -c "from ml_models.mlops_utils import DriftDetector; detector = DriftDetector(); result = detector.detect_drift(); print(f'Drift detected: {result[0]}, Details: {result[1]}')"
+
+# Update MLOps configuration if needed
+docker cp config/mlops_config.yaml $(docker ps -q -f name=app):/app/config/mlops_config.yaml
+```
+
+### 10.3. Performance Tuning
+
+For optimizing performance on the VM:
+
+```bash
+# Check current GPU utilization during inference
+docker exec -it $(docker ps -q -f name=app) nvidia-smi dmon
+
+# Monitor real-time resource usage
+docker exec -it $(docker ps -q -f name=app) python -c "from ml_models.mlops_utils import HardwareMonitor; monitor = HardwareMonitor(); print(monitor.log_hardware_metrics())"
+
+# Adjust batch size for better GPU utilization
+docker exec -it $(docker ps -q -f name=app) sed -i 's/batch_size = [0-9]*/batch_size = 8/' /app/ml_models/inference.py
+```
