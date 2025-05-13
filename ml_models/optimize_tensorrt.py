@@ -71,7 +71,7 @@ def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.L
     profile_max_shape = list(max_shape)
 
     # Check and adjust profile shapes if ONNX dimensions are static
-    for i in range(input_tensor.ndim):
+    for i in range(len(input_tensor.shape)):
         if actual_onnx_input_shape[i] > 0:  # Dimension i is static in ONNX model
             # If the profile for this dimension is not already fixed to the ONNX static size
             if not (profile_min_shape[i] == actual_onnx_input_shape[i] and
