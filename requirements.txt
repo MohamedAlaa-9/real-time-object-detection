@@ -10,7 +10,6 @@ onnx
 onnxruntime-gpu
 
 # GPU Acceleration & TensorRT
-tensorrt
 pycuda
 
 # Backend Web Framework
