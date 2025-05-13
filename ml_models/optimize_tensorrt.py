@@ -44,7 +44,7 @@ def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.L
     
     # Workspace Size: Adjust based on GPU memory (1 GiB example)
     # More workspace can allow TRT to find better tactics.
-    config.max_workspace_size = 1 << 30 
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30) 
     logger.info(f"Setting max workspace size to {config.max_workspace_size / (1024**2):.0f} MiB")
 
     # Precision Modes: FP16 or INT8 can improve performance
