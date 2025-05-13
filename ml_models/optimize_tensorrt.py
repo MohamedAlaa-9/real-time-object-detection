@@ -58,23 +58,57 @@ def build_engine(onnx_file_path: Path, engine_file_path: Path, trt_logger: trt.L
     # Get input tensor name (assuming single input)
     input_tensor = network.get_input(0)
     input_name = input_tensor.name
-    logger.info(f"Network input name: {input_name}, shape: {input_tensor.shape}")
+    # logger.info(f"Network input name: {input_name}, shape: {input_tensor.shape}") # Original logging
+    actual_onnx_input_shape = input_tensor.shape
+    logger.info(f"Network input name: {input_name}, ONNX shape: {actual_onnx_input_shape}")
+
+
+    # These are the shapes derived from config in the main block and passed as arguments:
+    # min_shape, opt_shape, max_shape (arguments to build_engine)
+
+    profile_min_shape = list(min_shape)
+    profile_opt_shape = list(opt_shape)
+    profile_max_shape = list(max_shape)
+
+    # Check and adjust profile shapes if ONNX dimensions are static
+    for i in range(input_tensor.ndim):
+        if actual_onnx_input_shape[i] > 0:  # Dimension i is static in ONNX model
+            # If the profile for this dimension is not already fixed to the ONNX static size
+            if not (profile_min_shape[i] == actual_onnx_input_shape[i] and
+                    profile_opt_shape[i] == actual_onnx_input_shape[i] and
+                    profile_max_shape[i] == actual_onnx_input_shape[i]):
+                # Log a warning if an adjustment is made
+                # The 'enable_dynamic' variable here is an argument to build_engine, 
+                # reflecting the 'enable_dynamic_axes' from config.
+                if enable_dynamic: 
+                    logger.warning(
+                        f"ONNX input '{input_name}' dimension {i} is static ({actual_onnx_input_shape[i]}), "
+                        f"but 'enable_dynamic_axes' is True in config. Profile for dim {i} was ({profile_min_shape[i]}, {profile_opt_shape[i]}, {profile_max_shape[i]}). "
+                        f"Adjusting to ({actual_onnx_input_shape[i]},{actual_onnx_input_shape[i]},{actual_onnx_input_shape[i]})."
+                    )
+                # Also adjust if enable_dynamic is false but profile somehow mismatches static ONNX
+                elif profile_opt_shape[i] != actual_onnx_input_shape[i]: 
+                     logger.warning(
+                        f"ONNX input '{input_name}' dimension {i} is static ({actual_onnx_input_shape[i]}), "
+                        f"and 'enable_dynamic_axes' is False. Profile for dim {i} was ({profile_min_shape[i]}, {profile_opt_shape[i]}, {profile_max_shape[i]}). "
+                        f"Adjusting to ({actual_onnx_input_shape[i]},{actual_onnx_input_shape[i]},{actual_onnx_input_shape[i]})."
+                    )
+                
+                profile_min_shape[i] = actual_onnx_input_shape[i]
+                profile_opt_shape[i] = actual_onnx_input_shape[i]
+                profile_max_shape[i] = actual_onnx_input_shape[i]
+    
+    final_min_shape = tuple(profile_min_shape)
+    final_opt_shape = tuple(profile_opt_shape)
+    final_max_shape = tuple(profile_max_shape)
 
     profile = builder.create_optimization_profile()
-    # Set shape constraints for the input tensor.
-    # Format: (min_shape, optimal_shape, max_shape)
-    if enable_dynamic:
-        logger.info(f"Adding optimization profile for input '{input_name}' with dynamic batch size:")
-        logger.info(f"  MIN shape: {min_shape}")
-        logger.info(f"  OPT shape: {opt_shape}")
-        logger.info(f"  MAX shape: {max_shape}")
-        profile.set_shape(input_name, min_shape, opt_shape, max_shape)
-    else:
-        # Use fixed shape if dynamic axes are disabled
-        fixed_shape = opt_shape # Use the optimal shape as the fixed shape
-        logger.info(f"Adding optimization profile for input '{input_name}' with fixed shape: {fixed_shape}")
-        profile.set_shape(input_name, fixed_shape, fixed_shape, fixed_shape)
-        
+    logger.info(f"Setting optimization profile for input '{input_name}':")
+    logger.info(f"  MIN shape: {final_min_shape}")
+    logger.info(f"  OPT shape: {final_opt_shape}")
+    logger.info(f"  MAX shape: {final_max_shape}")
+    profile.set_shape(input_name, final_min_shape, final_opt_shape, final_max_shape)
+    
     config.add_optimization_profile(profile)
 
     # --- Build Engine ---
