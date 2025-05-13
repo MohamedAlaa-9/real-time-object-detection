@@ -41,7 +41,6 @@ def check_model_files():
     """Check if model files exist and print their status"""
     models_to_check = {
         "Pre-trained base model": MODELS_DIR / "yolo11n.pt",
-        "Alternative base model": MODELS_DIR / "yolov8n.pt",
         "Fine-tuned model": MODELS_DIR / "best.pt",
         "ONNX exported model": EXPORT_ONNX_PATH,
         "TensorRT engine": TENSORRT_ENGINE_PATH
