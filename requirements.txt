@@ -9,7 +9,7 @@ PyYAML
 onnx
 onnxruntime-gpu
 
-# GPU Acceleration & TensorRT
+# GPU Acceleration
 pycuda
 
 # Backend Web Framework
