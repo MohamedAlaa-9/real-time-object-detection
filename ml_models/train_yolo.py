@@ -177,7 +177,7 @@ def create_inference_symlink(source_path):
     """Create a symlink to the best model for the inference system"""
     try:
         # Define the symlink target path (match what the backend expects)
-        inference_model_path = PROJECT_ROOT / "ml_models" / "best.pt"
+        inference_model_path = PROJECT_ROOT / "ml_models" / "models" / "best.pt"
         
         # Remove existing symlink if it exists
         if inference_model_path.exists() or inference_model_path.is_symlink():

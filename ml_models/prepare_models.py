@@ -27,12 +27,12 @@ MODELS_DIR = BASE_DIR / "models"
 
 
 # Define model paths
-YOLO11_MODEL_PATH = MODELS_DIR / 'models/yolo11n.pt'
-YOLO11_ONNX_PATH = MODELS_DIR / 'models/yolo11n.onnx'
-YOLO11_TRT_PATH = MODELS_DIR / 'models/yolo11n.trt'
-FINE_TUNED_MODEL_PATH = MODELS_DIR / 'models/best.pt'
-FINE_TUNED_ONNX_PATH = MODELS_DIR / 'models/best.onnx'
-FINE_TUNED_TRT_PATH = MODELS_DIR / 'models/best.trt'
+YOLO11_MODEL_PATH = MODELS_DIR / 'yolo11n.pt'
+YOLO11_ONNX_PATH = MODELS_DIR / 'yolo11n.onnx'
+YOLO11_TRT_PATH = MODELS_DIR / 'yolo11n.trt'
+FINE_TUNED_MODEL_PATH = MODELS_DIR / 'best.pt'
+FINE_TUNED_ONNX_PATH = MODELS_DIR / 'best.onnx'
+FINE_TUNED_TRT_PATH = MODELS_DIR / 'best.trt'
 
 # Try importing required libraries
 try:
