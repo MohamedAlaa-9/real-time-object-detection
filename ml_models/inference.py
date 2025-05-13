@@ -37,21 +37,16 @@ MODELS_DIR = BASE_DIR / "models"
 # Model paths
 FINE_TUNED_MODEL_PATH = MODELS_DIR / 'best.pt'       # Fine-tuned model
 FINE_TUNED_ONNX_PATH = MODELS_DIR / 'best.onnx'      # ONNX version of fine-tuned model
-FINE_TUNED_TRT_PATH = MODELS_DIR / 'best.trt'        # TensorRT engine of fine-tuned model
 YOLO11_MODEL_PATH = MODELS_DIR / 'yolo11n.pt'        # Pre-trained base YOLO11 model
 YOLO11_ONNX_PATH = MODELS_DIR / 'yolo11n.onnx'       # ONNX version of the base model
-YOLO11_TRT_PATH = MODELS_DIR / 'yolo11n.trt'         # TensorRT engine of base model
 
 # Flags to determine which model to use
 use_pytorch = False
 use_onnx = False
-use_tensorrt = False
+
+# ONNX Runtime session for inference (initialized later)
 model = None  # Initialize PyTorch model variable
 ort_session = None  # Initialize ONNX session
-trt_engine = None  # Initialize TensorRT engine
-trt_context = None  # Initialize TensorRT execution context
-trt_bindings = None  # Initialize TensorRT bindings
-trt_stream = None  # Initialize CUDA stream
 input_h, input_w = 640, 640  # Standard YOLO input size
 model_source = ""  # Track which model we're using
 
@@ -122,176 +117,89 @@ def export_model_to_onnx(model_path, output_path=None):
         logger.error(f"Error exporting model to ONNX: {e}")
         return False
 
-# --- Try loading TensorRT engine first (fastest inference) ---
+# --- Try loading ONNX model ---
 try:
-    # Only import TensorRT if we're going to use it
+    # Only import onnxruntime if we're going to use it
     try:
-        import tensorrt as trt
-        import pycuda.driver as cuda
-        import pycuda.autoinit
-        HAVE_TENSORRT = True
-        logger.info("TensorRT imported successfully")
+        import onnxruntime as ort
+        HAVE_ONNX = True
+        logger.info("ONNX Runtime imported successfully")
     except ImportError:
-        logger.warning("TensorRT not available. Install TensorRT and pycuda for fastest inference.")
-        HAVE_TENSORRT = False
+        logger.warning("ONNX Runtime not available. Install it with 'pip install onnxruntime' for faster inference than PyTorch.")
+        HAVE_ONNX = False
     
-    if HAVE_TENSORRT:
-        # First try to use fine-tuned TensorRT engine
-        if FINE_TUNED_TRT_PATH.exists():
+    if HAVE_ONNX:
+        # First try to use fine-tuned ONNX model
+        if FINE_TUNED_ONNX_PATH.exists():
             try:
-                logger.info(f"Loading fine-tuned TensorRT engine from: {FINE_TUNED_TRT_PATH}")
-                
-                # Create TensorRT runtime and engine
-                trt_logger = trt.Logger(trt.Logger.INFO)
-                runtime = trt.Runtime(trt_logger)
-                
-                # Load engine from file
-                with open(FINE_TUNED_TRT_PATH, 'rb') as f:
-                    engine_bytes = f.read()
-                    trt_engine = runtime.deserialize_cuda_engine(engine_bytes)
-                
-                # Create execution context
-                trt_context = trt_engine.create_execution_context()
-                
-                # Get input and output tensor names
-                input_name = 0  # TensorRT uses integer indices
-                output_name = 1  # TensorRT uses integer indices
-                
-                # Allocate device memory
-                trt_stream = cuda.Stream()
-                
-                use_tensorrt = True
-                model_source = "best-tensorrt"
-                logger.info(f"Successfully loaded fine-tuned TensorRT engine")
+                logger.info(f"Loading fine-tuned ONNX model from: {FINE_TUNED_ONNX_PATH}")
+                ort_session = ort.InferenceSession(
+                    str(FINE_TUNED_ONNX_PATH), 
+                    providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+                )
+                use_onnx = True
+                model_source = "best-onnx"
+                logger.info("Successfully loaded fine-tuned ONNX model")
             except Exception as e:
-                logger.error(f"Error loading fine-tuned TensorRT engine: {e}")
-                use_tensorrt = False
-                trt_engine = None
-                trt_context = None
-                
-        # Try base YOLO11n TensorRT engine if fine-tuned wasn't loaded
-        if not use_tensorrt and YOLO11_TRT_PATH.exists():
+                logger.error(f"Error loading fine-tuned ONNX model: {e}")
+                use_onnx = False
+                ort_session = None
+        
+        # Try base YOLO11n ONNX model if fine-tuned wasn't loaded
+        if not use_onnx and YOLO11_ONNX_PATH.exists():
             try:
-                logger.info(f"Loading base YOLOv11n TensorRT engine from: {YOLO11_TRT_PATH}")
-                
-                # Create TensorRT runtime and engine
-                trt_logger = trt.Logger(trt.Logger.INFO)
-                runtime = trt.Runtime(trt_logger)
-                
-                # Load engine from file
-                with open(YOLO11_TRT_PATH, 'rb') as f:
-                    engine_bytes = f.read()
-                    trt_engine = runtime.deserialize_cuda_engine(engine_bytes)
-                
-                # Create execution context
-                trt_context = trt_engine.create_execution_context()
-                
-                # Get input and output tensor names
-                input_name = 0  # TensorRT uses integer indices
-                output_name = 1  # TensorRT uses integer indices
-                
-                # Allocate device memory
-                trt_stream = cuda.Stream()
-                
-                use_tensorrt = True
-                model_source = "yolo11n-tensorrt"
-                logger.info(f"Successfully loaded base YOLOv11n TensorRT engine")
+                logger.info(f"Loading YOLOv11n ONNX model from: {YOLO11_ONNX_PATH}")
+                ort_session = ort.InferenceSession(
+                    str(YOLO11_ONNX_PATH), 
+                    providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+                )
+                use_onnx = True
+                model_source = "yolo11n-onnx"
+                logger.info("Successfully loaded YOLOv11n ONNX model")
             except Exception as e:
-                logger.error(f"Error loading base YOLOv11n TensorRT engine: {e}")
-                use_tensorrt = False
-                trt_engine = None
-                trt_context = None
+                logger.error(f"Error loading YOLOv11n ONNX model: {e}")
+                use_onnx = False
+                ort_session = None
+                
+        # If ONNX model doesn't exist, try to export it from PyTorch
+        if not use_onnx and (FINE_TUNED_MODEL_PATH.exists() or YOLO11_MODEL_PATH.exists()):
+            try:
+                logger.info("Attempting to export PyTorch model to ONNX...")
+                
+                if FINE_TUNED_MODEL_PATH.exists():
+                    export_success = export_model_to_onnx(FINE_TUNED_MODEL_PATH)
+                    if export_success and FINE_TUNED_ONNX_PATH.exists():
+                        logger.info(f"Loading newly exported fine-tuned ONNX model")
+                        ort_session = ort.InferenceSession(
+                            str(FINE_TUNED_ONNX_PATH), 
+                            providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+                        )
+                        use_onnx = True
+                        model_source = "best-onnx-exported"
+                
+                if not use_onnx and YOLO11_MODEL_PATH.exists():
+                    export_success = export_model_to_onnx(YOLO11_MODEL_PATH)
+                    if export_success and YOLO11_ONNX_PATH.exists():
+                        logger.info(f"Loading newly exported YOLOv11n ONNX model")
+                        ort_session = ort.InferenceSession(
+                            str(YOLO11_ONNX_PATH), 
+                            providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+                        )
+                        use_onnx = True
+                        model_source = "yolo11n-onnx-exported"
+                
+            except Exception as e:
+                logger.error(f"Error exporting or loading exported ONNX model: {e}")
+                use_onnx = False
+                ort_session = None
                 
 except Exception as e:
-    logger.warning(f"Failed to load TensorRT engine: {e}. Will try ONNX instead.")
-    use_tensorrt = False
-    trt_engine = None
-    trt_context = None
-
-# --- Try loading ONNX model if TensorRT is not available ---
-if not use_tensorrt:
-    try:
-        # Only import onnxruntime if we're going to use it
-        try:
-            import onnxruntime as ort
-            HAVE_ONNX = True
-            logger.info("ONNX Runtime imported successfully")
-        except ImportError:
-            logger.warning("ONNX Runtime not available. Install it with 'pip install onnxruntime' for faster inference than PyTorch.")
-            HAVE_ONNX = False
-        
-        if HAVE_ONNX:
-            # First try to use fine-tuned ONNX model
-            if FINE_TUNED_ONNX_PATH.exists():
-                try:
-                    logger.info(f"Loading fine-tuned ONNX model from: {FINE_TUNED_ONNX_PATH}")
-                    ort_session = ort.InferenceSession(
-                        str(FINE_TUNED_ONNX_PATH), 
-                        providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
-                    )
-                    use_onnx = True
-                    model_source = "best-onnx"
-                    logger.info("Successfully loaded fine-tuned ONNX model")
-                except Exception as e:
-                    logger.error(f"Error loading fine-tuned ONNX model: {e}")
-                    use_onnx = False
-                    ort_session = None
-            
-            # Try base YOLO11n ONNX model if fine-tuned wasn't loaded
-            if not use_onnx and YOLO11_ONNX_PATH.exists():
-                try:
-                    logger.info(f"Loading YOLOv11n ONNX model from: {YOLO11_ONNX_PATH}")
-                    ort_session = ort.InferenceSession(
-                        str(YOLO11_ONNX_PATH), 
-                        providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
-                    )
-                    use_onnx = True
-                    model_source = "yolo11n-onnx"
-                    logger.info("Successfully loaded YOLOv11n ONNX model")
-                except Exception as e:
-                    logger.error(f"Error loading YOLOv11n ONNX model: {e}")
-                    use_onnx = False
-                    ort_session = None
-                    
-            # If ONNX model doesn't exist, try to export it from PyTorch
-            if not use_onnx and (FINE_TUNED_MODEL_PATH.exists() or YOLO11_MODEL_PATH.exists()):
-                try:
-                    logger.info("Attempting to export PyTorch model to ONNX...")
-                    
-                    if FINE_TUNED_MODEL_PATH.exists():
-                        export_success = export_model_to_onnx(FINE_TUNED_MODEL_PATH)
-                        if export_success and FINE_TUNED_ONNX_PATH.exists():
-                            logger.info(f"Loading newly exported fine-tuned ONNX model")
-                            ort_session = ort.InferenceSession(
-                                str(FINE_TUNED_ONNX_PATH), 
-                                providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
-                            )
-                            use_onnx = True
-                            model_source = "best-onnx-exported"
-                    
-                    if not use_onnx and YOLO11_MODEL_PATH.exists():
-                        export_success = export_model_to_onnx(YOLO11_MODEL_PATH)
-                        if export_success and YOLO11_ONNX_PATH.exists():
-                            logger.info(f"Loading newly exported YOLOv11n ONNX model")
-                            ort_session = ort.InferenceSession(
-                                str(YOLO11_ONNX_PATH), 
-                                providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
-                            )
-                            use_onnx = True
-                            model_source = "yolo11n-onnx-exported"
-                    
-                except Exception as e:
-                    logger.error(f"Error exporting or loading exported ONNX model: {e}")
-                    use_onnx = False
-                    ort_session = None
-                    
-    except Exception as e:
-        logger.warning(f"Failed to load ONNX model: {e}. Will try PyTorch instead.")
-        use_onnx = False
-        ort_session = None
+    logger.warning(f"Failed to load ONNX model: {e}. Will try PyTorch instead.")
+    use_onnx = False
+    ort_session = None
 
 # --- Load PyTorch Model if ONNX is not available ---
-if not use_onnx and not use_tensorrt:
+if not use_onnx:
     try:
         from ultralytics import YOLO
         
@@ -428,79 +336,10 @@ def postprocess_onnx(outputs, orig_img_shape, conf_threshold=0.45, iou_threshold
         else:
             return [], [], []
 
-# --- Functions for TensorRT Inference ---
-def preprocess_tensorrt(frame: np.ndarray) -> np.ndarray:
-    """Prepare a frame for TensorRT inference."""
-    with PREPROCESS_TIME.time():
-        # Resize frame to model input size
-        img = cv2.resize(frame, (input_w, input_h))
-        
-        # Convert BGR to RGB and normalize
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img.astype(np.float32) / 255.0
-        
-        # HWC to CHW format (batch, channels, height, width)
-        img = img.transpose(2, 0, 1)
-        
-        # Add batch dimension
-        img = np.expand_dims(img, axis=0)
-        
-    return img
-
-def infer_tensorrt(input_tensor):
-    """Run inference using TensorRT engine"""
-    if not use_tensorrt or trt_engine is None or trt_context is None:
-        logger.error("TensorRT engine not initialized")
-        return None
-    
-    # Get input and output shapes
-    input_shape = trt_context.get_binding_shape(0)
-    output_shape = trt_context.get_binding_shape(1)
-    
-    # Allocate device memory for input
-    d_input = cuda.mem_alloc(input_tensor.nbytes)
-    
-    # Calculate output size and allocate memory
-    output_size = 1
-    for dim in output_shape:
-        if dim > 0:  # Skip dynamic dimensions
-            output_size *= dim
-    
-    # Set binding shape for dynamic dimensions if needed
-    if -1 in input_shape:
-        trt_context.set_binding_shape(0, (1, 3, input_h, input_w))
-    
-    # Allocate output memory
-    dtype_size = 4  # float32 is 4 bytes
-    d_output = cuda.mem_alloc(output_size * dtype_size)
-    
-    # Copy input data to device
-    cuda.memcpy_htod_async(d_input, input_tensor, trt_stream)
-    
-    # Run inference
-    bindings = [int(d_input), int(d_output)]
-    trt_context.execute_async_v2(bindings, trt_stream.handle)
-    
-    # Allocate host memory for output
-    h_output = np.empty(output_size, dtype=np.float32)
-    
-    # Copy output back to host
-    cuda.memcpy_dtoh_async(h_output, d_output, trt_stream)
-    
-    # Synchronize stream
-    trt_stream.synchronize()
-    
-    # Reshape output to expected format
-    # Format is typically [batch_size, num_classes + 5, num_anchors]
-    # where 5 is for [x, y, width, height, confidence]
-    h_output = h_output.reshape(output_shape)
-    
-    return h_output
-
 # --- Universal Inference Function ---
 def infer(frame: np.ndarray):
     """
-    Performs inference on a single frame using TensorRT, ONNX, or PyTorch model.
+    Performs inference on a single frame using ONNX or PyTorch model.
 
     Args:
         frame: The input image frame (NumPy array BGR).
@@ -513,33 +352,8 @@ def infer(frame: np.ndarray):
     if frame is None:
         logger.warning("Received None frame, skipping inference.")
         return boxes, scores, classes
-    
-    # Try TensorRT inference first if available (fastest)
-    if use_tensorrt and trt_engine is not None and trt_context is not None:
-        try:
-            with INFERENCE_TIME.time():
-                # Preprocess image
-                input_tensor = preprocess_tensorrt(frame)
-                
-                # Run TensorRT inference
-                outputs = infer_tensorrt(input_tensor)
-                
-                # Postprocess results (TensorRT uses same format as ONNX)
-                boxes, scores, classes = postprocess_onnx(outputs, frame.shape)
-                
-                if boxes:
-                    logger.info(f"TensorRT inference found {len(boxes)} objects.")
-                else:
-                    logger.debug("TensorRT inference: no objects detected.")
-                    
-                INFERENCE_COUNT.inc()
-                return boxes, scores, classes
-                
-        except Exception as e:
-            logger.error(f"Error during TensorRT inference: {e}. Falling back to ONNX.")
-            # Fall through to ONNX inference
-    
-    # Try ONNX inference if TensorRT failed or is not available
+        
+    # Try ONNX inference
     if use_onnx and ort_session is not None:
         try:
             with INFERENCE_TIME.time():
@@ -610,15 +424,9 @@ def get_class_names():
 
 # --- Cleanup function ---
 def cleanup():
-    global ort_session, model, trt_engine, trt_context
+    global ort_session, model
     logger.info("Releasing resources...")
     
-    if trt_engine:
-        del trt_engine
-        logger.info("TensorRT engine released.")
-    if trt_context:
-        del trt_context
-        logger.info("TensorRT context released.")
     if ort_session:
         del ort_session
         logger.info("ONNX session released.")
@@ -632,15 +440,14 @@ def cleanup():
 atexit.register(cleanup)
 
 # --- Final status report ---
-if not use_onnx and not use_pytorch and not use_tensorrt:
+if not use_onnx and not use_pytorch:
     logger.warning("No working inference engine found. Backend may fall back to mock inference.")
 else:
-    engine_type = "TensorRT" if use_tensorrt else ("ONNX" if use_onnx else "PyTorch")
+    engine_type = "ONNX" if use_onnx else "PyTorch"
     logger.info(f"Inference engine initialized using {'fine-tuned' if 'best' in model_source else 'base'} model with {engine_type} ({model_source}).")
     # Store model type info in a file for monitoring
     with open(BASE_DIR / "model_status.txt", "w") as f:
         f.write(f"model_source={model_source}\n")
         f.write(f"use_onnx={use_onnx}\n")
         f.write(f"use_pytorch={use_pytorch}\n")
-        f.write(f"use_tensorrt={use_tensorrt}\n")
         f.write(f"using_fine_tuned={'True' if 'best' in model_source else 'False'}\n")

@@ -35,7 +35,9 @@ ML_MODELS_DIR = PROJECT_ROOT / "ml_models"
 MODELS_DIR = ML_MODELS_DIR / "models"
 CONFIG_PATH = PROJECT_ROOT / "config/train_config.yaml"
 EXPORT_ONNX_PATH = MODELS_DIR / "best.onnx"
-TENSORRT_ENGINE_PATH = MODELS_DIR / "best.trt"
+
+PYTORCH_MODEL_PATH = MODELS_DIR / "best.pt"
+ONNX_MODEL_PATH = MODELS_DIR / "best.onnx"
 
 def check_model_files():
     """Check if model files exist and print their status"""
@@ -43,7 +45,6 @@ def check_model_files():
         "Pre-trained base model": MODELS_DIR / "yolo11n.pt",
         "Fine-tuned model": MODELS_DIR / "best.pt",
         "ONNX exported model": EXPORT_ONNX_PATH,
-        "TensorRT engine": TENSORRT_ENGINE_PATH
     }
     
     print("\n--- Model Files Status ---")
@@ -100,220 +101,6 @@ def verify_dataset():
         logger.info("Dataset already prepared")
         return True
 
-def benchmark_tensorrt_vs_onnx():
-    """
-    Benchmarks TensorRT performance against ONNX and PyTorch inference.
-    Performs multiple inference runs and compares average execution time.
-    """
-    try:
-        import tensorrt as trt
-        import pycuda.driver as cuda
-        import pycuda.autoinit
-        import torch
-        import onnxruntime as ort
-        
-        logger.info("\n" + "="*60)
-        logger.info(" BENCHMARKING MODEL INFERENCE PERFORMANCE ".center(60, "="))
-        logger.info("="*60)
-        
-        # Load test image
-        test_img_path = PROJECT_ROOT / "datasets/processed/images/test/000000.jpg"
-        if not test_img_path.exists():
-            test_img_path = next((PROJECT_ROOT / "datasets/processed/images/test").glob("*.jpg"), None)
-            
-        if not test_img_path:
-            logger.error("No test images found. Cannot proceed with benchmarking.")
-            return
-            
-        logger.info(f"Loading test image: {test_img_path}")
-        img = cv2.imread(str(test_img_path))
-        if img is None:
-            logger.error("Failed to load test image")
-            return
-            
-        h, w = img.shape[:2]
-        logger.info(f"Image loaded successfully: {w}x{h} pixels")
-        
-        # Define common preprocessing
-        input_size = (640, 640)  # Standard YOLO input size
-        
-        # Prepare test data
-        resized_img = cv2.resize(img, input_size)
-        input_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2RGB)
-        input_img = input_img.astype(np.float32) / 255.0
-        input_img = input_img.transpose(2, 0, 1)  # HWC to CHW
-        input_img = np.expand_dims(input_img, 0)  # Add batch dimension
-        
-        # Dictionary to store benchmark results
-        results = {}
-        
-        # ---- Benchmark TensorRT ----
-        trt_model_path = MODELS_DIR / "tensorrt_models/best.trt"
-        if trt_model_path.exists():
-            try:
-                logger.info("Benchmarking TensorRT model...")
-                
-                # Load TensorRT engine
-                logger.info("Loading TensorRT engine")
-                trt_logger = trt.Logger(trt.Logger.INFO)
-                runtime = trt.Runtime(trt_logger)
-                with open(str(trt_model_path), 'rb') as f:
-                    serialized_engine = f.read()
-                engine = runtime.deserialize_cuda_engine(serialized_engine)
-                context = engine.create_execution_context()
-                
-                # Allocate device memory
-                stream = cuda.Stream()
-                
-                # Get input and output binding indices
-                input_idx = engine.get_binding_index("images")  # Input tensor name (adjust if different)
-                output_idx = 1  # Assuming single output, index 1
-                
-                # Allocate device memory
-                d_input = cuda.mem_alloc(input_img.nbytes)
-                d_output = cuda.mem_alloc(4 * 84 * 8400)  # Adjust size based on model output
-                bindings = [int(d_input), int(d_output)]
-                
-                # Warm-up run
-                cuda.memcpy_htod_async(d_input, input_img, stream)
-                context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
-                stream.synchronize()
-                
-                # Benchmark runs
-                num_runs = 20
-                start_time = time.time()
-                for _ in range(num_runs):
-                    cuda.memcpy_htod_async(d_input, input_img, stream)
-                    context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
-                    stream.synchronize()
-                
-                trt_time = (time.time() - start_time) / num_runs
-                results["TensorRT"] = trt_time
-                
-                logger.info(f"TensorRT average inference time: {trt_time*1000:.2f} ms")
-                
-                # Clean up
-                d_input.free()
-                d_output.free()
-                del context
-                del engine
-                
-            except Exception as e:
-                logger.error(f"Error benchmarking TensorRT model: {e}")
-        else:
-            logger.warning("TensorRT model not found. Skipping TensorRT benchmark.")
-        
-        # ---- Benchmark ONNX ----
-        onnx_model_path = MODELS_DIR / "onnx_models/best.onnx"
-        if onnx_model_path.exists():
-            try:
-                logger.info("Benchmarking ONNX model...")
-                
-                # Configure ONNX Runtime for best performance
-                sess_options = ort.SessionOptions()
-                sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                
-                # Use CUDA execution provider if available
-                providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-                session = ort.InferenceSession(str(onnx_model_path), sess_options, providers=providers)
-                
-                # Get input name
-                input_name = session.get_inputs()[0].name
-                
-                # Warm-up run
-                session.run(None, {input_name: input_img})
-                
-                # Benchmark runs
-                num_runs = 20
-                start_time = time.time()
-                for _ in range(num_runs):
-                    session.run(None, {input_name: input_img})
-                
-                onnx_time = (time.time() - start_time) / num_runs
-                results["ONNX"] = onnx_time
-                
-                logger.info(f"ONNX average inference time: {onnx_time*1000:.2f} ms")
-                
-            except Exception as e:
-                logger.error(f"Error benchmarking ONNX model: {e}")
-        else:
-            logger.warning("ONNX model not found. Skipping ONNX benchmark.")
-        
-        # ---- Benchmark PyTorch ----
-        try:
-            from ultralytics import YOLO
-            
-            pt_model_path = ML_MODELS_DIR / "best.pt"
-            if pt_model_path.exists():
-                try:
-                    logger.info("Benchmarking PyTorch model...")
-                    
-                    # Load PyTorch model
-                    model = YOLO(str(pt_model_path))
-                    
-                    # Convert numpy image back to format YOLO expects
-                    torch_img = torch.from_numpy(input_img).to('cuda' if torch.cuda.is_available() else 'cpu')
-                    
-                    # Warm-up run
-                    with torch.no_grad():
-                        model(torch_img, verbose=False)
-                    
-                    # Benchmark runs
-                    num_runs = 20
-                    start_time = time.time()
-                    for _ in range(num_runs):
-                        with torch.no_grad():
-                            model(torch_img, verbose=False)
-                    
-                    pytorch_time = (time.time() - start_time) / num_runs
-                    results["PyTorch"] = pytorch_time
-                    
-                    logger.info(f"PyTorch average inference time: {pytorch_time*1000:.2f} ms")
-                    
-                except Exception as e:
-                    logger.error(f"Error benchmarking PyTorch model: {e}")
-            else:
-                logger.warning("PyTorch model not found. Skipping PyTorch benchmark.")
-        except ImportError:
-            logger.warning("Ultralytics package not found. Skipping PyTorch benchmark.")
-        
-        # ---- Display comparison ----
-        if results:
-            logger.info("\n" + "-"*60)
-            logger.info(" PERFORMANCE COMPARISON ".center(60, "-"))
-            logger.info("-"*60)
-            
-            # Find fastest model
-            fastest = min(results.items(), key=lambda x: x[1])
-            
-            for model_type, time_taken in sorted(results.items(), key=lambda x: x[1]):
-                speedup = ""
-                if model_type != fastest[0]:
-                    speedup = f" ({time_taken/fastest[1]:.1f}x slower than {fastest[0]})"
-                
-                logger.info(f"{model_type:>10}: {time_taken*1000:.2f} ms per inference{speedup}")
-            
-            logger.info("-"*60)
-            logger.info(f"Fastest model: {fastest[0]} ({fastest[1]*1000:.2f} ms)")
-            
-            # TensorRT vs ONNX comparison
-            if "TensorRT" in results and "ONNX" in results:
-                speedup = results["ONNX"] / results["TensorRT"]
-                logger.info(f"TensorRT is {speedup:.2f}x faster than ONNX")
-                
-            # TensorRT vs PyTorch comparison
-            if "TensorRT" in results and "PyTorch" in results:
-                speedup = results["PyTorch"] / results["TensorRT"]
-                logger.info(f"TensorRT is {speedup:.2f}x faster than PyTorch")
-            
-        else:
-            logger.warning("No benchmark results collected.")
-            
-    except ImportError as e:
-        logger.error(f"Required packages for benchmarking not installed: {e}")
-        logger.info("To run benchmarks, install required packages:")
-        logger.info("pip install tensorrt pycuda torch onnxruntime")
-
 def main():
     print("\n" + "="*80)
     print(" MODEL PIPELINE VERIFICATION ".center(80, "="))
@@ -357,18 +144,6 @@ def main():
     inference_test_cmd = f"python -c \"from ml_models.inference import model, model_source; print('Model loaded successfully - using ' + model_source + ' model')\""
     success, output = run_command(inference_test_cmd, "Testing model loading for inference")
     
-    # Step 7: Benchmark TensorRT vs ONNX and PyTorch performance
-    try:
-        # Check if TensorRT engine exists
-        if (ML_MODELS_DIR / "best.trt").exists():
-            logger.info("TensorRT engine found. Running performance benchmarks...")
-            benchmark_tensorrt_vs_onnx()
-        else:
-            logger.info("TensorRT engine not found. Skipping benchmarks.")
-            logger.info("To enable benchmarks, run: ./optimize_with_tensorrt.sh")
-    except Exception as e:
-        logger.warning(f"Could not run benchmarks: {e}")
-    
     if success:
         print("\n" + "="*80)
         print(" PIPELINE VERIFICATION COMPLETE ".center(80, "="))
@@ -379,8 +154,6 @@ def main():
         print("  - Model path synchronization working")
         print("  - Backend configured to use the correct model and classes")
         print("  - Inference system able to load the model")
-        if (ML_MODELS_DIR / "best.trt").exists():
-            print("  - TensorRT optimization enabled for faster inference")
         print("\nYour system is ready for deployment to Azure!")
     else:
         print("\n" + "="*80)
@@ -388,10 +161,6 @@ def main():
         print("="*80)
         print("\n❌ Some issues were detected in your model pipeline.")
         print("   Please review the logs above to identify and fix the problems.")
-    
-    # Step 7: Benchmark TensorRT vs ONNX
-    logger.info("Benchmarking TensorRT and ONNX models...")
-    benchmark_tensorrt_vs_onnx()
 
 if __name__ == "__main__":
     main()

@@ -29,10 +29,9 @@ MODELS_DIR = BASE_DIR / "models"
 # Define model paths
 YOLO11_MODEL_PATH = MODELS_DIR / 'yolo11n.pt'
 YOLO11_ONNX_PATH = MODELS_DIR / 'yolo11n.onnx'
-YOLO11_TRT_PATH = MODELS_DIR / 'yolo11n.trt'
+
 FINE_TUNED_MODEL_PATH = MODELS_DIR / 'best.pt'
 FINE_TUNED_ONNX_PATH = MODELS_DIR / 'best.onnx'
-FINE_TUNED_TRT_PATH = MODELS_DIR / 'best.trt'
 
 # Try importing required libraries
 try:
@@ -52,17 +51,6 @@ try:
 except ImportError:
     logger.warning("ONNX Runtime not available. Install with: pip install onnxruntime")
     HAS_ONNX = False
-
-# Try importing TensorRT
-try:
-    import tensorrt as trt
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    HAS_TENSORRT = True
-except ImportError:
-    logger.warning("TensorRT not found. Will not be able to optimize with TensorRT.")
-    logger.warning("Install TensorRT and pycuda for improved inference performance.")
-    HAS_TENSORRT = False
 
 
 def download_yolo11n():
@@ -130,51 +118,6 @@ def export_to_onnx(model_path, output_path=None, imgsz=640):
         return False
 
 
-def optimize_with_tensorrt(onnx_path, trt_path):
-    """Optimize an ONNX model with TensorRT"""
-    if not HAS_TENSORRT:
-        logger.warning("TensorRT optimization requested but TensorRT is not available. Skipping.")
-        return False
-    
-    if not onnx_path.exists():
-        logger.warning(f"ONNX file {onnx_path} does not exist. Cannot optimize with TensorRT.")
-        return False
-    
-    try:
-        logger.info(f"Optimizing {onnx_path} with TensorRT...")
-        # Import optimizer function from local module
-        from optimize_tensorrt import build_engine
-        
-        # Create TensorRT logger
-        trt_logger = trt.Logger(trt.Logger.WARNING)
-        
-        # Input shapes for optimization (batch, channels, height, width)
-        min_shape = (1, 3, 640, 640)
-        opt_shape = (1, 3, 640, 640)
-        max_shape = (4, 3, 640, 640)  # Support up to batch size 4
-        
-        # Build TensorRT engine
-        engine = build_engine(
-            onnx_path,
-            trt_path,
-            trt_logger,
-            enable_dynamic=True,
-            min_shape=min_shape,
-            opt_shape=opt_shape,
-            max_shape=max_shape
-        )
-        
-        if engine:
-            logger.info(f"Successfully optimized {onnx_path} to {trt_path}")
-            return True
-        else:
-            logger.error(f"Failed to build TensorRT engine from {onnx_path}")
-            return False
-    except Exception as e:
-        logger.error(f"Error during TensorRT optimization: {e}")
-        return False
-
-
 def find_latest_trained_model():
     """Find the latest fine-tuned model from the runs directory."""
     runs_dir = PROJECT_ROOT / "runs" / "train"
@@ -237,10 +180,8 @@ def verify_model_loading():
     results = {
         "yolo11n_pt": False,
         "yolo11n_onnx": False,
-        "yolo11n_trt": False,
         "fine_tuned_pt": False,
         "fine_tuned_onnx": False,
-        "fine_tuned_trt": False
     }
     
     # Verify PyTorch models
@@ -283,35 +224,6 @@ def verify_model_loading():
             except Exception as e:
                 logger.error(f"Failed to load fine-tuned ONNX model: {e}")
     
-    # Verify TensorRT engines
-    if HAS_TENSORRT:
-        # Test base YOLO11n TensorRT engine
-        if YOLO11_TRT_PATH.exists():
-            try:
-                logger.info(f"TensorRT engine file for YOLO11n exists: {YOLO11_TRT_PATH}")
-                # We can't easily load the engine here without a full inference context
-                # But we can check the file exists and has a reasonable size
-                if YOLO11_TRT_PATH.stat().st_size > 1000000:  # Should be at least 1MB
-                    results["yolo11n_trt"] = True
-                    logger.info("YOLO11n TensorRT engine appears valid")
-                else:
-                    logger.warning(f"YOLO11n TensorRT engine file exists but is suspiciously small: {YOLO11_TRT_PATH.stat().st_size} bytes")
-            except Exception as e:
-                logger.error(f"Error checking YOLO11n TensorRT engine: {e}")
-        
-        # Test fine-tuned TensorRT engine
-        if FINE_TUNED_TRT_PATH.exists():
-            try:
-                logger.info(f"TensorRT engine file for fine-tuned model exists: {FINE_TUNED_TRT_PATH}")
-                # Check file size as a basic validation
-                if FINE_TUNED_TRT_PATH.stat().st_size > 1000000:  # Should be at least 1MB
-                    results["fine_tuned_trt"] = True
-                    logger.info("Fine-tuned TensorRT engine appears valid")
-                else:
-                    logger.warning(f"Fine-tuned TensorRT engine file exists but is suspiciously small: {FINE_TUNED_TRT_PATH.stat().st_size} bytes")
-            except Exception as e:
-                logger.error(f"Error checking fine-tuned TensorRT engine: {e}")
-    
     return results
 
 
@@ -331,11 +243,6 @@ def display_summary(results):
     print(f"  Base YOLO11n model: {'✅ Ready' if results['yolo11n_onnx'] else '❌ Not available'}")
     print(f"  Fine-tuned model:   {'✅ Ready' if results['fine_tuned_onnx'] else '❌ Not available'}")
     
-    # TensorRT engines
-    print("\nTensorRT Engines:")
-    print(f"  Base YOLO11n model: {'✅ Ready' if results['yolo11n_trt'] else '❌ Not available'}")
-    print(f"  Fine-tuned model:   {'✅ Ready' if results['fine_tuned_trt'] else '❌ Not available'}")
-    
     # Overall status
     any_ready = any(results.values())
     print("\nOverall Status:")
@@ -343,14 +250,10 @@ def display_summary(results):
         print("  ✅ At least one model is ready for inference")
         
         # Determine fallback order
-        if results["fine_tuned_trt"]:
-            print("  ➡️ System will use: Fine-tuned TensorRT engine (fastest)")
-        elif results["fine_tuned_onnx"]:
+        if results["fine_tuned_onnx"]:
             print("  ➡️ System will use: Fine-tuned ONNX model (fast)")
         elif results["fine_tuned_pt"]:
             print("  ➡️ System will use: Fine-tuned PyTorch model")
-        elif results["yolo11n_trt"]:
-            print("  ➡️ System will use: Base YOLO11n TensorRT engine")
         elif results["yolo11n_onnx"]:
             print("  ➡️ System will use: Base YOLO11n ONNX model")
         elif results["yolo11n_pt"]:
@@ -367,8 +270,6 @@ def display_summary(results):
         print("  - Or manually place a trained model at ml_models/best.pt")
     elif not (results["fine_tuned_onnx"] or results["yolo11n_onnx"]):
         print("  - Export to ONNX with --export for better performance")
-    elif not (results["fine_tuned_trt"] or results["yolo11n_trt"]):
-        print("  - Optimize with TensorRT: python ml_models/prepare_models.py --tensorrt")
     else:
         print("  - All models are prepared! Start the backend with:")
         print("    python backend/main.py")
@@ -386,7 +287,6 @@ def main():
     parser.add_argument("--fine-tuned", action="store_true", help="Prepare only the fine-tuned model")
     parser.add_argument("--base", action="store_true", help="Prepare only the base YOLOv11 model")
     parser.add_argument("--verify", action="store_true", help="Only verify model loading without preparation")
-    parser.add_argument("--tensorrt", action="store_true", help="Also optimize models with TensorRT")
     args = parser.parse_args()
     
     # Handle the case where no arguments are provided - default to all
@@ -396,10 +296,8 @@ def main():
     results = {
         "yolo11n_pt": False, 
         "yolo11n_onnx": False,
-        "yolo11n_trt": False,
         "fine_tuned_pt": False, 
         "fine_tuned_onnx": False,
-        "fine_tuned_trt": False
     }
     
     # If we're only verifying, skip preparation
@@ -422,10 +320,6 @@ def main():
         # 2. Export the fine-tuned model to ONNX for faster inference
         if results["fine_tuned_pt"]:
             results["fine_tuned_onnx"] = export_to_onnx(FINE_TUNED_MODEL_PATH, FINE_TUNED_ONNX_PATH)
-            
-        # 3. Optimize the fine-tuned ONNX model with TensorRT
-        if args.tensorrt and results["fine_tuned_onnx"]:
-            results["fine_tuned_trt"] = optimize_with_tensorrt(FINE_TUNED_ONNX_PATH, FINE_TUNED_TRT_PATH)
     
     # Prepare base model if requested or if fine-tuned model preparation failed
     if args.all or args.base or (args.fine_tuned and not results["fine_tuned_pt"]):
@@ -444,16 +338,6 @@ def main():
         elif YOLO11_ONNX_PATH.exists():
             results["yolo11n_onnx"] = True
             logger.info(f"Base YOLO11n ONNX model already exists at {YOLO11_ONNX_PATH}")
-            
-        # 3. Optimize the base ONNX model with TensorRT
-        if args.tensorrt and results["yolo11n_onnx"]:
-            results["yolo11n_trt"] = optimize_with_tensorrt(YOLO11_ONNX_PATH, YOLO11_TRT_PATH)
-            logger.info(f"YOLO11n ONNX model already exists at {YOLO11_ONNX_PATH}")
-            results["yolo11n_onnx"] = True
-        
-        # 3. Optimize the base ONNX model with TensorRT
-        if args.tensorrt and results["yolo11n_onnx"]:
-            results["yolo11n_trt"] = optimize_with_tensorrt(YOLO11_ONNX_PATH, YOLO11_TRT_PATH)
     
     # Verify the models can be loaded
     if verify_model_loading():
