@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+
+chmod +x quickstart.sh && ./quickstart.sh --start
+
+
 # Quick Start Script for Real-Time Object Detection System
 echo "=========================================="
 echo "Quick Start - Real-Time Object Detection"
