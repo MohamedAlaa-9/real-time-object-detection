@@ -20,10 +20,8 @@ scrape_configs:
   - job_name: "object_detection"
     metrics_path: /metrics
     static_configs:
-      # Target the metrics endpoint exposed by inference.py (default port 8001)
-      # Set METRICS_ENDPOINT=host.docker.internal:8001 when running docker on mac/windows
-      # Or set to the appropriate service name/IP if using docker-compose/k8s
-      - targets: ["${METRICS_ENDPOINT:-localhost:8001}"]
+      # Target the metrics endpoint exposed by inference.py
+      - targets: ["inference:8001"]
         labels:
           service: "object_detection"
           component: "model"
@@ -32,7 +30,7 @@ scrape_configs:
   - job_name: "backend"
     metrics_path: /metrics
     static_configs:
-      - targets: ["${BACKEND_ENDPOINT:-localhost:8081}"]
+      - targets: ["backend:8080"]
         labels:
           service: "object_detection"
           component: "backend"

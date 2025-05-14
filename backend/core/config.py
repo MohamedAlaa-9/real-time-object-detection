@@ -49,5 +49,5 @@ import random
 COLORS = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(len(CLASS_NAMES))]
 
 # API settings
-API_PORT = int(os.getenv("API_PORT", 8081))  # Ensure this is 8081
+API_PORT = int(os.getenv("API_PORT", 8080))  # Ensure this is 8080
 API_HOST = os.getenv("API_HOST", "0.0.0.0")

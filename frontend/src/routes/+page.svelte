@@ -22,7 +22,7 @@
   let loadingCamera = false;
 
   // Configuration
-  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8081/ws';
+  const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws';
   const FPS_INTERVAL = 1000; // Update FPS every second
   
   // Switch between camera and upload tabs

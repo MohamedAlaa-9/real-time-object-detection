@@ -22,7 +22,7 @@ logger.info("Initializing Inference Engine...")
 
 # Start metrics server
 try:
-    # Use a different port than the backend server (which uses 8081)
+    # Use a different port than the backend server (which uses 8080)
     start_http_server(8001)
     logger.info("Prometheus metrics server started on port 8001.")
 except OSError as e:

@@ -44,7 +44,7 @@ az vm create \
   --public-ip-sku Standard
 
 # Open ports for the application
-az vm open-port --resource-group real-time-object-detection --name kazzaz --port 8081 --priority 1001
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 8080 --priority 1001
 az vm open-port --resource-group real-time-object-detection --name kazzaz --port 3000 --priority 1002
 az vm open-port --resource-group real-time-object-detection --name kazzaz --port 5000 --priority 1003
 az vm open-port --resource-group real-time-object-detection --name kazzaz --port 9090 --priority 1004
@@ -147,7 +147,7 @@ services:
   app:
     image: objectdetectionacr.azurecr.io/object-detection:latest
     ports:
-      - "8081:8081"
+      - "8080:8080"
     volumes:
       - ./data:/app/data
       - ./ml_models:/app/ml_models
@@ -155,9 +155,9 @@ services:
       resources:
         reservations:
           devices:
-            - driver: nvidia
+            - driver: 
               count: 1
-              capabilities: [gpu]
+              capabilities: []
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - PROMETHEUS_MULTIPROC_DIR=/tmp
@@ -255,8 +255,8 @@ docker-compose ps
 
 ### 4.2. Access the Application
 
-- Backend API: http://40.76.126.51:8081
-- Frontend: http://40.76.126.51:8081 (served by the backend)
+- Backend API: http://40.76.126.51:8080
+- Frontend: http://40.76.126.51:8080 (served by the backend)
 - Grafana: http://40.76.126.51:3000 (login: admin/admin)
 - Prometheus: http://40.76.126.51:9090
 - MLflow: http://40.76.126.51:5000
@@ -267,7 +267,7 @@ docker-compose ps
 
 ```bash
 # Create a service principal with contributor role
-az ad sp create-for-rbac --name "object-detection-ci-cd" --role contributor --scopes /subscriptions/<your-subscription-id>/resourceGroups/real-time-object-detection --sdk-auth
+az ad sp create-for-rbac --name "object-detection-ci-cd" --role contributor --scopes /subscriptions/your-subscription-id/resourceGroups/real-time-object-detection --sdk-auth
 ```
 
 Save the output JSON for use in GitHub secrets.

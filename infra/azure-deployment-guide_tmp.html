@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>azure-deployment-guide.md</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+    
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+html,footer,header{
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Custom MD PDF CSS
+ */
+html,footer,header{
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+
+ }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+<link rel="stylesheet" href="file:///home/sci/WSL_Space/real-time-object-detection/R%3A%5C2.Travail%5C1.Enseignement%5CCours%5C_1.Outils%5C2.Developpement%5C1.SCSS%5Cmain.css" type="text/css"><link rel="stylesheet" href="file:///home/sci/WSL_Space/real-time-object-detection/D%3A%5Crdaros%5CCours%5C_1.Outils%5C2.Developpement%5C1.SCSS%5Cmain.css" type="text/css">
+</head>
+
+<body>
+    <h1 id="azure-deployment-guide-for-real-time-object-detection">Azure Deployment Guide for Real-Time Object Detection</h1>
+<p>This guide provides step-by-step instructions for deploying the real-time object detection application on Azure, including setting up a GPU virtual machine, container registry, and monitoring infrastructure.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Azure account with an active subscription</li>
+<li>Azure CLI installed locally</li>
+<li>Docker installed locally</li>
+<li>Git repository with your application code</li>
+</ul>
+<h2 id="1-setting-up-azure-resources">1. Setting Up Azure Resources</h2>
+<h3 id="11-create-a-resource-group">1.1. Create a Resource Group</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Create a resource group</span>
+az group create --name real-time-object-detection --location eastus
+</div></code></pre>
+<h3 id="12-create-an-azure-container-registry-acr">1.2. Create an Azure Container Registry (ACR)</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Create a container registry</span>
+az acr create --resource-group real-time-object-detection --name objectdetectionacr --sku Standard --admin-enabled <span class="hljs-literal">true</span>
+
+<span class="hljs-comment"># Get the ACR credentials</span>
+az acr credential show --name objectdetectionacr
+</div></code></pre>
+<p>Save the username and password for later use.</p>
+<h3 id="13-create-a-gpu-virtual-machine">1.3. Create a GPU Virtual Machine</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Create a GPU VM (NC-series with NVIDIA GPU)</span>
+az vm create \
+  --resource-group real-time-object-detection \
+  --name kazzaz \
+  --image Canonical:UbuntuServer:18.04-LTS:latest \
+  --admin-username azureuser \
+  --generate-ssh-keys \
+  --size Standard_NC6s_v3 \
+  --public-ip-sku Standard
+
+<span class="hljs-comment"># Open ports for the application</span>
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 8080 --priority 1001
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 3000 --priority 1002
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 5000 --priority 1003
+az vm open-port --resource-group real-time-object-detection --name kazzaz --port 9090 --priority 1004
+</div></code></pre>
+<h2 id="2-setting-up-the-virtual-machine">2. Setting Up the Virtual Machine</h2>
+<h3 id="21-connect-to-the-vm">2.1. Connect to the VM</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Get the public IP address</span>
+az vm show -d -g real-time-object-detection -n kazzaz --query publicIps -o tsv
+
+<span class="hljs-comment"># SSH into the VM (IP: 40.76.126.51)</span>
+ssh azureuser@40.76.126.51
+</div></code></pre>
+<h3 id="22-install-nvidia-drivers-and-docker">2.2. Install NVIDIA Drivers and Docker</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Update package list</span>
+sudo apt-get update
+
+<span class="hljs-comment"># Install required packages</span>
+sudo apt-get install -y linux-headers-$(uname -r) build-essential
+
+<span class="hljs-comment"># Install NVIDIA drivers</span>
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
+sudo mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
+wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda-repo-ubuntu1804-11-8-local_11.8.0-520.61.05-1_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu1804-11-8-local_11.8.0-520.61.05-1_amd64.deb
+sudo cp /var/cuda-repo-ubuntu1804-11-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
+sudo apt-get update
+sudo apt-get -y install cuda-11-8
+
+<span class="hljs-comment"># Install Docker</span>
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+<span class="hljs-comment"># Add user to the docker group</span>
+sudo usermod -aG docker <span class="hljs-variable">$USER</span>
+
+<span class="hljs-comment"># Install NVIDIA Container Toolkit</span>
+distribution=$(. /etc/os-release;<span class="hljs-built_in">echo</span> <span class="hljs-variable">$ID</span><span class="hljs-variable">$VERSION_ID</span>)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/<span class="hljs-variable">$distribution</span>/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update
+sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+
+<span class="hljs-comment"># Test NVIDIA Docker installation</span>
+sudo docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu20.04 nvidia-smi
+</div></code></pre>
+<p>Log out and log back in to apply the docker group changes.</p>
+<h3 id="23-install-docker-compose">2.3. Install Docker Compose</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Install Docker Compose</span>
+sudo curl -L <span class="hljs-string">"https://github.com/docker/compose/releases/download/v2.17.2/docker-compose-<span class="hljs-variable">$(uname -s)</span>-<span class="hljs-variable">$(uname -m)</span>"</span> -o /usr/<span class="hljs-built_in">local</span>/bin/docker-compose
+sudo chmod +x /usr/<span class="hljs-built_in">local</span>/bin/docker-compose
+</div></code></pre>
+<h2 id="3-building-and-deploying-the-application">3. Building and Deploying the Application</h2>
+<h3 id="31-clone-the-repository">3.1. Clone the Repository</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Clone your repository</span>
+git <span class="hljs-built_in">clone</span> https://github.com/yourusername/real-time-object-detection.git
+<span class="hljs-built_in">cd</span> real-time-object-detection
+</div></code></pre>
+<h3 id="32-log-in-to-azure-container-registry">3.2. Log in to Azure Container Registry</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Log in to ACR</span>
+docker login objectdetectionacr.azurecr.io -u &lt;username&gt; -p &lt;password&gt;
+</div></code></pre>
+<h3 id="33-build-and-push-the-docker-image">3.3. Build and Push the Docker Image</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Build the image</span>
+docker build -t objectdetectionacr.azurecr.io/object-detection:latest .
+
+<span class="hljs-comment"># Push the image to ACR</span>
+docker push objectdetectionacr.azurecr.io/object-detection:latest
+</div></code></pre>
+<h3 id="34-create-a-docker-compose-file">3.4. Create a Docker Compose File</h3>
+<p>Create a <code>docker-compose.yml</code> file with the following content:</p>
+<pre class="hljs"><code><div><span class="hljs-attr">version:</span> <span class="hljs-string">'3'</span>
+<span class="hljs-attr">services:</span>
+  <span class="hljs-comment"># Main application</span>
+  <span class="hljs-attr">app:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">objectdetectionacr.azurecr.io/object-detection:latest</span>
+    <span class="hljs-attr">ports:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">"8080:8080"</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./data:/app/data</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./ml_models:/app/ml_models</span>
+    <span class="hljs-attr">deploy:</span>
+      <span class="hljs-attr">resources:</span>
+        <span class="hljs-attr">reservations:</span>
+          <span class="hljs-attr">devices:</span>
+            <span class="hljs-bullet">-</span> <span class="hljs-attr">driver:</span> 
+              <span class="hljs-attr">count:</span> <span class="hljs-number">1</span>
+              <span class="hljs-attr">capabilities:</span> <span class="hljs-string">[]</span>
+    <span class="hljs-attr">environment:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">NVIDIA_VISIBLE_DEVICES=all</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">PROMETHEUS_MULTIPROC_DIR=/tmp</span>
+
+  <span class="hljs-comment"># Prometheus</span>
+  <span class="hljs-attr">prometheus:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">prom/prometheus:latest</span>
+    <span class="hljs-attr">ports:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">"9090:9090"</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./infra/prometheus.yml:/etc/prometheus/prometheus.yml</span>
+    <span class="hljs-attr">command:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">'--config.file=/etc/prometheus/prometheus.yml'</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">'--storage.tsdb.path=/prometheus'</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">'--web.console.libraries=/usr/share/prometheus/console_libraries'</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">'--web.console.templates=/usr/share/prometheus/consoles'</span>
+
+  <span class="hljs-comment"># Grafana</span>
+  <span class="hljs-attr">grafana:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">grafana/grafana:latest</span>
+    <span class="hljs-attr">ports:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">"3000:3000"</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./infra/grafana-dashboards:/etc/grafana/provisioning/dashboards</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./infra/grafana-datasources:/etc/grafana/provisioning/datasources</span>
+    <span class="hljs-attr">environment:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">GF_SECURITY_ADMIN_PASSWORD=admin</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">GF_USERS_ALLOW_SIGN_UP=false</span>
+    <span class="hljs-attr">depends_on:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">prometheus</span>
+
+  <span class="hljs-comment"># MLflow</span>
+  <span class="hljs-attr">mlflow:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">ghcr.io/mlflow/mlflow:latest</span>
+    <span class="hljs-attr">ports:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">"5000:5000"</span>
+    <span class="hljs-attr">volumes:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">./mlruns:/mlruns</span>
+    <span class="hljs-attr">command:</span> <span class="hljs-string">mlflow</span> <span class="hljs-string">server</span> <span class="hljs-string">--host</span> <span class="hljs-number">0.0</span><span class="hljs-number">.0</span><span class="hljs-number">.0</span> <span class="hljs-string">--serve-artifacts</span>
+    <span class="hljs-attr">environment:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">MLFLOW_TRACKING_URI=http://localhost:5000</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlruns</span>
+</div></code></pre>
+<h3 id="35-create-grafana-configuration-directories">3.5. Create Grafana Configuration Directories</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Create Grafana configuration directories</span>
+mkdir -p infra/grafana-datasources
+mkdir -p infra/grafana-dashboards
+</div></code></pre>
+<p>Create <code>infra/grafana-datasources/prometheus.yml</code>:</p>
+<pre class="hljs"><code><div><span class="hljs-attr">apiVersion:</span> <span class="hljs-number">1</span>
+
+<span class="hljs-attr">datasources:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Prometheus</span>
+    <span class="hljs-attr">type:</span> <span class="hljs-string">prometheus</span>
+    <span class="hljs-attr">access:</span> <span class="hljs-string">proxy</span>
+    <span class="hljs-attr">url:</span> <span class="hljs-string">http://prometheus:9090</span>
+    <span class="hljs-attr">isDefault:</span> <span class="hljs-literal">true</span>
+</div></code></pre>
+<p>Create <code>infra/grafana-dashboards/dashboard.yml</code>:</p>
+<pre class="hljs"><code><div><span class="hljs-attr">apiVersion:</span> <span class="hljs-number">1</span>
+
+<span class="hljs-attr">providers:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">'default'</span>
+    <span class="hljs-attr">folder:</span> <span class="hljs-string">''</span>
+    <span class="hljs-attr">type:</span> <span class="hljs-string">file</span>
+    <span class="hljs-attr">options:</span>
+      <span class="hljs-attr">path:</span> <span class="hljs-string">/etc/grafana/provisioning/dashboards</span>
+</div></code></pre>
+<p>Copy your Grafana dashboard JSON to <code>infra/grafana-dashboards/model-performance.json</code>.</p>
+<h3 id="36-start-the-application">3.6. Start the Application</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Start the application with Docker Compose</span>
+docker-compose up -d
+</div></code></pre>
+<h2 id="4-verifying-the-deployment">4. Verifying the Deployment</h2>
+<h3 id="41-check-container-status">4.1. Check Container Status</h3>
+<pre class="hljs"><code><div>docker-compose ps
+</div></code></pre>
+<h3 id="42-access-the-application">4.2. Access the Application</h3>
+<ul>
+<li>Backend API: http://40.76.126.51:8080</li>
+<li>Frontend: http://40.76.126.51:8080 (served by the backend)</li>
+<li>Grafana: http://40.76.126.51:3000 (login: admin/admin)</li>
+<li>Prometheus: http://40.76.126.51:9090</li>
+<li>MLflow: http://40.76.126.51:5000</li>
+</ul>
+<h2 id="5-setting-up-cicd-with-github-actions">5. Setting Up CI/CD with GitHub Actions</h2>
+<h3 id="51-create-azure-service-principal">5.1. Create Azure Service Principal</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Create a service principal with contributor role</span>
+az ad sp create-for-rbac --name <span class="hljs-string">"object-detection-ci-cd"</span> --role contributor --scopes /subscriptions/your-subscription-id/resourceGroups/real-time-object-detection --sdk-auth
+</div></code></pre>
+<p>Save the output JSON for use in GitHub secrets.</p>
+<h3 id="52-configure-github-secrets">5.2. Configure GitHub Secrets</h3>
+<p>In your GitHub repository, add these secrets:</p>
+<ul>
+<li><code>AZURE_CREDENTIALS</code>: The entire JSON output from the service principal creation</li>
+<li><code>AZURE_REGISTRY</code>: The ACR login server (e.g., objectdetectionacr.azurecr.io)</li>
+<li><code>AZURE_USERNAME</code>: The ACR username</li>
+<li><code>AZURE_PASSWORD</code>: The ACR password</li>
+<li><code>AZURE_RESOURCE_GROUP</code>: real-time-object-detection</li>
+<li><code>AZURE_VM_NAME</code>: kazzaz</li>
+</ul>
+<h3 id="53-create-github-workflow">5.3. Create GitHub Workflow</h3>
+<p>Create a file <code>.github/workflows/deploy.yml</code> with the following content:</p>
+<pre class="hljs"><code><div><span class="hljs-attr">name:</span> <span class="hljs-string">Deploy</span> <span class="hljs-string">to</span> <span class="hljs-string">Azure</span>
+<span class="hljs-attr">on:</span>
+  <span class="hljs-attr">push:</span>
+    <span class="hljs-attr">branches:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">main</span>
+
+<span class="hljs-attr">jobs:</span>
+  <span class="hljs-attr">deploy:</span>
+    <span class="hljs-attr">runs-on:</span> <span class="hljs-string">ubuntu-latest</span>
+    <span class="hljs-attr">steps:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">uses:</span> <span class="hljs-string">actions/checkout@v3</span>
+      
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Set</span> <span class="hljs-string">up</span> <span class="hljs-string">Docker</span> <span class="hljs-string">Buildx</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">docker/setup-buildx-action@v2</span>
+      
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Login</span> <span class="hljs-string">to</span> <span class="hljs-string">Azure</span> <span class="hljs-string">Container</span> <span class="hljs-string">Registry</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">docker/login-action@v2</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">registry:</span> <span class="hljs-string">${{</span> <span class="hljs-string">secrets.AZURE_REGISTRY</span> <span class="hljs-string">}}</span>
+          <span class="hljs-attr">username:</span> <span class="hljs-string">${{</span> <span class="hljs-string">secrets.AZURE_USERNAME</span> <span class="hljs-string">}}</span>
+          <span class="hljs-attr">password:</span> <span class="hljs-string">${{</span> <span class="hljs-string">secrets.AZURE_PASSWORD</span> <span class="hljs-string">}}</span>
+      
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Build</span> <span class="hljs-string">and</span> <span class="hljs-string">push</span> <span class="hljs-string">Docker</span> <span class="hljs-string">image</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">docker/build-push-action@v3</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">context:</span> <span class="hljs-string">.</span>
+          <span class="hljs-attr">push:</span> <span class="hljs-literal">true</span>
+          <span class="hljs-attr">tags:</span> <span class="hljs-string">${{</span> <span class="hljs-string">secrets.AZURE_REGISTRY</span> <span class="hljs-string">}}/object-detection:latest</span>
+      
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">Deploy</span> <span class="hljs-string">to</span> <span class="hljs-string">Azure</span> <span class="hljs-string">VM</span>
+        <span class="hljs-attr">uses:</span> <span class="hljs-string">azure/CLI@v1</span>
+        <span class="hljs-attr">with:</span>
+          <span class="hljs-attr">azcliversion:</span> <span class="hljs-string">latest</span>
+          <span class="hljs-attr">inlineScript:</span> <span class="hljs-string">|
+            az vm run-command invoke \
+              -g ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              -n ${{ secrets.AZURE_VM_NAME }} \
+              --command-id RunShellScript \
+              --scripts "cd /home/azureuser/real-time-object-detection &amp;&amp; docker pull ${{ secrets.AZURE_REGISTRY }}/object-detection:latest &amp;&amp; docker-compose down &amp;&amp; docker-compose up -d"
+</span></div></code></pre>
+<h2 id="6-monitoring-and-maintenance">6. Monitoring and Maintenance</h2>
+<h3 id="61-view-logs">6.1. View Logs</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># View logs from all containers</span>
+docker-compose logs
+
+<span class="hljs-comment"># View logs from a specific service</span>
+docker-compose logs app
+</div></code></pre>
+<h3 id="62-update-the-application">6.2. Update the Application</h3>
+<p>When you push changes to your main branch, the GitHub Actions workflow will automatically:</p>
+<ol>
+<li>Build a new Docker image</li>
+<li>Push it to Azure Container Registry</li>
+<li>Pull the latest image on the VM</li>
+<li>Restart the containers with the new image</li>
+</ol>
+<h3 id="63-manual-updates">6.3. Manual Updates</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># SSH into the VM with IP 40.76.126.51</span>
+ssh azureuser@40.76.126.51
+
+<span class="hljs-comment"># Navigate to the project directory</span>
+<span class="hljs-built_in">cd</span> /home/azureuser/real-time-object-detection
+
+<span class="hljs-comment"># Pull the latest code</span>
+git pull
+
+<span class="hljs-comment"># Pull the latest image</span>
+docker pull objectdetectionacr.azurecr.io/object-detection:latest
+
+<span class="hljs-comment"># Restart containers</span>
+docker-compose down
+docker-compose up -d
+</div></code></pre>
+<h3 id="64-updating-monitoring-services">6.4. Updating Monitoring Services</h3>
+<p>If you need to update the monitoring setup:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># SSH into the VM</span>
+ssh azureuser@40.76.126.51
+
+<span class="hljs-comment"># Navigate to the project directory</span>
+<span class="hljs-built_in">cd</span> /home/azureuser/real-time-object-detection
+
+<span class="hljs-comment"># Update monitoring configuration</span>
+cp infra/monitoring_init.sh infra/monitoring_init.sh.bak  <span class="hljs-comment"># Backup</span>
+nano infra/monitoring_init.sh  <span class="hljs-comment"># Edit configuration as needed</span>
+
+<span class="hljs-comment"># Run the updated monitoring script</span>
+bash infra/monitoring_init.sh
+
+<span class="hljs-comment"># Restart monitoring services</span>
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+</div></code></pre>
+<h3 id="65-troubleshooting-monitoring-issues">6.5. Troubleshooting Monitoring Issues</h3>
+<p>If you encounter issues with the monitoring services on the VM (IP: 40.76.126.51):</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check if monitoring containers are running</span>
+docker ps | grep -E <span class="hljs-string">'prometheus|grafana|mlflow'</span>
+
+<span class="hljs-comment"># Check monitoring container logs</span>
+docker logs $(docker ps -q -f name=prometheus)
+docker logs $(docker ps -q -f name=grafana)
+docker logs $(docker ps -q -f name=mlflow)
+
+<span class="hljs-comment"># Verify Prometheus targets and metrics</span>
+curl http://localhost:9090/api/v1/targets
+curl http://localhost:9090/api/v1/query?query=up
+
+<span class="hljs-comment"># Verify Prometheus configuration</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=prometheus) cat /etc/prometheus/prometheus.yml
+
+<span class="hljs-comment"># Verify MLflow is functioning</span>
+curl http://localhost:5000/api/2.0/mlflow/experiments/list
+
+<span class="hljs-comment"># Check for data volume issues</span>
+df -h
+du -sh mlruns/
+
+<span class="hljs-comment"># Restart specific service if needed (example for Grafana)</span>
+docker restart $(docker ps -q -f name=grafana)
+
+<span class="hljs-comment"># Check if there are issues with model monitoring</span>
+docker logs $(docker ps -q -f name=app)
+
+<span class="hljs-comment"># Rebuild monitoring configuration if needed</span>
+bash infra/monitoring_init.sh
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+</div></code></pre>
+<h3 id="66-backup-mlflow-data">6.6. Backup MLflow Data</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Backup MLflow data</span>
+zip -r mlflow_backup_$(date +%Y%m%d).zip mlruns/
+</div></code></pre>
+<h2 id="7-troubleshooting">7. Troubleshooting</h2>
+<h3 id="71-check-gpu-access">7.1. Check GPU Access</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check if GPU is visible to Docker</span>
+docker <span class="hljs-built_in">exec</span> -it object-detection-real-time-object-detection-app-1 nvidia-smi
+</div></code></pre>
+<h3 id="72-test-model-inference">7.2. Test Model Inference</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Run a quick test with the inference script</span>
+docker <span class="hljs-built_in">exec</span> -it object-detection-real-time-object-detection-app-1 python -c <span class="hljs-string">"from ml_models.inference import infer; import cv2; img = cv2.imread('/app/data/sample.jpg'); results = infer(img); print(f'Found {len(results[0])} objects')"</span>
+</div></code></pre>
+<h3 id="73-check-monitoring-services">7.3. Check Monitoring Services</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check Prometheus metrics</span>
+curl http://localhost:9090/api/v1/query?query=up
+
+<span class="hljs-comment"># Check MLflow status</span>
+curl http://localhost:5000/api/2.0/mlflow/experiments/list
+</div></code></pre>
+<h2 id="8-scaling-and-optimization">8. Scaling and Optimization</h2>
+<h3 id="81-optimize-for-performance">8.1. Optimize for Performance</h3>
+<ul>
+<li>Adjust inference batch size in <code>ml_models/inference.py</code></li>
+<li>Use TensorRT optimization for ONNX models</li>
+<li>Monitor model drift and latency using Grafana dashboards</li>
+</ul>
+<h3 id="82-scaling-up">8.2. Scaling Up</h3>
+<p>For higher workloads, consider:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Stop the current VM</span>
+az vm stop --resource-group real-time-object-detection --name kazzaz
+
+<span class="hljs-comment"># Resize to a larger GPU VM</span>
+az vm resize --resource-group real-time-object-detection --name kazzaz --size Standard_NC12s_v3
+
+<span class="hljs-comment"># Start the VM again</span>
+az vm start --resource-group real-time-object-detection --name kazzaz
+</div></code></pre>
+<h2 id="9-cleanup">9. Cleanup</h2>
+<p>When you no longer need the resources:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Delete the entire resource group</span>
+az group delete --name real-time-object-detection --yes
+</div></code></pre>
+<p>This will remove all resources including the VM, ACR, and associated networking components.</p>
+<h2 id="10-application-updates-and-common-issues">10. Application Updates and Common Issues</h2>
+<h3 id="101-updating-the-application-on-vm-ip-407612651">10.1. Updating the Application on VM (IP: 40.76.126.51)</h3>
+<p>For a complete update of the application including code, models, and configuration:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># SSH into the VM</span>
+ssh azureuser@40.76.126.51
+
+<span class="hljs-comment"># Navigate to project directory</span>
+<span class="hljs-built_in">cd</span> /home/azureuser/real-time-object-detection
+
+<span class="hljs-comment"># Pull latest code changes</span>
+git pull
+
+<span class="hljs-comment"># Stop the existing services</span>
+docker-compose down
+
+<span class="hljs-comment"># Rebuild the Docker image with latest code</span>
+docker build -t objectdetectionacr.azurecr.io/object-detection:latest .
+
+<span class="hljs-comment"># Push the updated image to ACR</span>
+docker push objectdetectionacr.azurecr.io/object-detection:latest
+
+<span class="hljs-comment"># Restart the application with the new image</span>
+docker-compose up -d
+</div></code></pre>
+<h3 id="102-common-issues-and-fixes">10.2. Common Issues and Fixes</h3>
+<h4 id="gpu-not-available-for-inference">GPU Not Available for Inference</h4>
+<p>If NVIDIA GPU is not being detected:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Verify NVIDIA drivers are properly installed</span>
+nvidia-smi
+
+<span class="hljs-comment"># Check if nvidia-docker is working correctly</span>
+sudo docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu20.04 nvidia-smi
+
+<span class="hljs-comment"># If there are issues, reinstall the NVIDIA Container Toolkit</span>
+sudo apt-get purge -y nvidia-docker2
+sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+</div></code></pre>
+<h4 id="monitoring-pipeline-failures">Monitoring Pipeline Failures</h4>
+<p>If the monitoring tools are not collecting metrics correctly:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check if MLflow, Prometheus, and Grafana are running</span>
+docker ps | grep -E <span class="hljs-string">'mlflow|prometheus|grafana'</span>
+
+<span class="hljs-comment"># Check Python package dependencies</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) pip list | grep -E <span class="hljs-string">'mlflow|psutil|pynvml'</span>
+
+<span class="hljs-comment"># Install missing packages if needed</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) pip install mlflow psutil pynvml
+
+<span class="hljs-comment"># Verify monitoring directories exist and have proper permissions</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) ls -la /app/metrics
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) mkdir -p /app/metrics
+
+<span class="hljs-comment"># Restart monitoring services</span>
+bash infra/monitoring_init.sh
+docker-compose -f infra/docker-compose.monitoring.yml down
+docker-compose -f infra/docker-compose.monitoring.yml up -d
+</div></code></pre>
+<h4 id="model-drift-detection-issues">Model Drift Detection Issues</h4>
+<p>If model drift detection is not working:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check if metrics files are being created</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) ls -la /app/metrics
+
+<span class="hljs-comment"># Manually trigger drift detection</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) python -c <span class="hljs-string">"from ml_models.mlops_utils import DriftDetector; detector = DriftDetector(); result = detector.detect_drift(); print(f'Drift detected: {result[0]}, Details: {result[1]}')"</span>
+
+<span class="hljs-comment"># Update MLOps configuration if needed</span>
+docker cp config/mlops_config.yaml $(docker ps -q -f name=app):/app/config/mlops_config.yaml
+</div></code></pre>
+<h3 id="103-performance-tuning">10.3. Performance Tuning</h3>
+<p>For optimizing performance on the VM:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Check current GPU utilization during inference</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) nvidia-smi dmon
+
+<span class="hljs-comment"># Monitor real-time resource usage</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) python -c <span class="hljs-string">"from ml_models.mlops_utils import HardwareMonitor; monitor = HardwareMonitor(); print(monitor.log_hardware_metrics())"</span>
+
+<span class="hljs-comment"># Adjust batch size for better GPU utilization</span>
+docker <span class="hljs-built_in">exec</span> -it $(docker ps -q -f name=app) sed -i <span class="hljs-string">'s/batch_size = [0-9]*/batch_size = 8/'</span> /app/ml_models/inference.py
+</div></code></pre>
+
+</body>
+
+</html>

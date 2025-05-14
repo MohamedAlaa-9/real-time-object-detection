@@ -9,8 +9,6 @@ PyYAML
 onnx
 onnxruntime-gpu
 
-# GPU Acceleration
-pycuda
 
 # Backend Web Framework
 fastapi

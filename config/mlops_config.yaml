@@ -3,7 +3,7 @@
 
 # MLflow Configuration
 mlflow:
-  tracking_uri: "http://localhost:5000"  # MLflow tracking server URI
+  tracking_uri: "http://mlflow:5000"  # MLflow tracking server URI
   experiment_name: "object_detection_monitoring"
   register_model: true  # Whether to register models to MLflow Model Registry
   log_artifacts: true   # Whether to log model artifacts

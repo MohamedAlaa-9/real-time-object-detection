@@ -9,7 +9,8 @@ This project focuses on building and optimizing a machine learning pipeline for 
 * Optimized TensorRT inference script for performance (memory allocation) and clarity
 * Improved ONNX export process with dynamic axes support
 * Refined post-processing logic for correct bounding box scaling
-* Updated dependency management and documentation
+* Added comprehensive monitoring with Prometheus, Grafana and MLflow
+* Containerized all components for easy deployment in VM environments
 
 ## Project Structure
 
@@ -198,6 +199,67 @@ Follow these steps to set up and run the ML pipeline locally:
 
    ```bash
    python backend/main.py
+   ```
+
+8. **Run the Complete System with Monitoring:**
+
+   ```bash
+   ./setup.sh
+   ```
+
+## Monitoring & Observability
+
+The system includes a comprehensive monitoring stack for tracking model performance, system resources, and ML experiment metrics:
+
+### Components
+
+- **Prometheus**: Time-series database for metrics collection
+  - Endpoint: http://localhost:9090
+  - Collects metrics from backend, inference service, and node exporter
+
+- **Grafana**: Visualization and dashboards
+  - Endpoint: http://localhost:3001 (default login: admin/admin)
+  - Dashboards:
+    - Object Detection Model Metrics: Inference rate, latency, processing times
+    - System Metrics: CPU, memory, disk I/O, network traffic
+    - MLflow Model Performance: mAP, precision, recall, model versions
+
+- **MLflow**: ML experiment tracking and model registry
+  - Endpoint: http://localhost:5000
+  - Features:
+    - Experiment tracking for model training runs
+    - Model versioning and registry
+    - Performance metrics history
+    - Model artifacts storage
+
+### Monitoring Features
+
+1. **Real-time Model Performance**
+   - Inference latency monitoring
+   - Processing time breakdown (pre/post-processing)
+   - Inference count and throughput
+
+2. **System Resource Monitoring**
+   - CPU usage and load
+   - Memory utilization
+   - Disk I/O performance
+   - Network traffic
+   - GPU utilization (if available)
+
+3. **ML Experiment Tracking**
+   - Model accuracy metrics over time
+   - Training parameters and hyperparameters
+   - Model version control
+   - Automatic drift detection
+
+### VM Deployment
+
+For deploying the system on a VM, refer to the [VM Deployment Guide](vm-deployment-guide.md). The guide includes instructions for:
+
+1. Setting up the VM environment
+2. Installing prerequisites
+3. Deploying the containerized application
+4. Accessing and configuring the monitoring dashboards
    ```
 
 8. **Start the Frontend Development Server (for development):**
