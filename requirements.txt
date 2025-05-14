@@ -9,7 +9,6 @@ PyYAML
 onnx
 onnxruntime-gpu
 
-
 # Backend Web Framework
 fastapi
 uvicorn[standard]
@@ -17,6 +16,7 @@ python-multipart
 
 # Computer Vision
 opencv-python-headless
+opencv-python
 
 prometheus-client
 mlflow
