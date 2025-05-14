@@ -37,7 +37,7 @@ def health_check():
     return {"status": "online", "message": "Real-Time Object Detection API is running"}
 
 # Serve static frontend files if the directory exists
-static_dir = Path(__file__).parent / "frontend" / "dist"
+static_dir = Path(__file__).parent.parent / "frontend" / "dist"
 if static_dir.exists() and static_dir.is_dir():
     logger.info(f"Serving frontend from {static_dir}")
     app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")

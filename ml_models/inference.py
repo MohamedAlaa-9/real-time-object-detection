@@ -135,7 +135,7 @@ try:
                 logger.info(f"Loading fine-tuned ONNX model from: {FINE_TUNED_ONNX_PATH}")
                 ort_session = ort.InferenceSession(
                     str(FINE_TUNED_ONNX_PATH), 
-                    providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+                    providers=['CPUExecutionProvider', 'CUDAExecutionProvider']
                 )
                 use_onnx = True
                 model_source = "best-onnx"
