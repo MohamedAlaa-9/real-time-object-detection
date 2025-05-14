@@ -43,7 +43,7 @@ scrape_configs:
   # Node exporter for host metrics (if installed)
   - job_name: "node"
     static_configs:
-      - targets: ["${NODE_EXPORTER:-localhost:9100}"]
+      - targets: ["node-exporter:9100"]
         labels:
           service: "object_detection"
           component: "host"
