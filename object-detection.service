@@ -1,0 +1,16 @@
+[Unit]
+Description=Real-time Object Detection Backend
+After=network.target
+
+[Service]
+User=aa30301161801636
+Group=aa30301161801636
+WorkingDirectory=/home/aa30301161801636/real-time-object-detection
+Environment="PYTHONPATH=/home/aa30301161801636/real-time-object-detection"
+Environment="PATH=/home/aa30301161801636/real-time-object-detection/venv/bin:$PATH"
+ExecStart=/home/aa30301161801636/real-time-object-detection/venv/bin/python backend/main.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

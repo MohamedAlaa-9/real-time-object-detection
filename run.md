@@ -1,5 +1,5 @@
 cd ~/real-time-object-detection && source venv/bin/activate &&
-export PYTHONPATH=/home/aa30301161801636/real-time-object-detection && cd /backend
+export PYTHONPATH=/home/aa30301161801636/real-time-object-detection && cd backend/
 
 # Start the backend server
 uvicorn main:app --host 0.0.0.0 --port 8080 --reload
