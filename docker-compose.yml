@@ -7,15 +7,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "443:3000"
     depends_on:
       - backend
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     environment:
-      - NODE_ENV=development
-      - BACKEND_URL=http://backend:8080
+      - NODE_ENV=production
+      - BACKEND_URL=https://backend:8080
 
   # Backend service - FastAPI application
   backend:
