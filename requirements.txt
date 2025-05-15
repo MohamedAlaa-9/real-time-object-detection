@@ -7,7 +7,7 @@ pandas
 Pillow
 PyYAML
 onnx
-onnxruntime-gpu
+onnxruntime==1.17.0
 
 # Backend Web Framework
 fastapi
@@ -15,7 +15,8 @@ uvicorn[standard]
 python-multipart
 
 # Computer Vision
-opencv-python-headless-4.11.0.86
+opencv-python-headless
 
+# Monitoring & Experiment Tracking
 prometheus-client
 mlflow
