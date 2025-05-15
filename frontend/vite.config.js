@@ -5,13 +5,24 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     proxy: {
-      // Proxy API requests (e.g., for video upload) to backend on port 8080
-      '/video': 'http://localhost:8080',
-      // Proxy WebSocket connections to backend on port 8080
+      // Proxy API requests to backend
+      '/api': {
+        target: 'https://adelkazzaz.ninja',
+        changeOrigin: true,
+        secure: true
+      },
+      // Proxy WebSocket connections to backend
       '/ws': {
-        target: 'ws://localhost:8080',
-        ws: true
+        target: 'wss://adelkazzaz.ninja',
+        ws: true,
+        secure: true,
+        changeOrigin: true
       }
     }
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false
   }
 });
