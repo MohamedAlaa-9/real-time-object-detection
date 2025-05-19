@@ -22,7 +22,7 @@ __pycache__/
 ml_models/__pycache__/
 ml_models/checkpoints/
 ml_models/logs/
-ml_models/runs/  # YOLOv8 training runs
+ml_models/runs/
 
 # 📊 Datasets & Data Files
 datasets/raw/
@@ -31,8 +31,12 @@ datasets/*.zip
 datasets/*.tar.gz
 datasets/*.tgz
 mlruns/*
-runs_01/
-runs_02/
+# Ignore everything in
+runs_01/*
+runs_02/*
+# But not this specific file
+!runs_01/train/yolov11_kitti_production/results.png
+!runs_02/train/yolov11_kitti_demo_safe_ft/results.png
 
 # 🔑 Environment Variables & Secrets
 .env
