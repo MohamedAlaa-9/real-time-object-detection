@@ -53,7 +53,7 @@ Our extensive testing revealed an interesting trade-off between our models:
 
 #### 🔄 50-Epoch Model: High Performance but Memory Trade-off
 
-![50-Epoch Results](runs_01/train/yolov11_kitti_production/results.png)
+![50-Epoch Results](docs/results_50.png)
 
 The 50-epoch model shows fascinating characteristics:
 - ✅ Excellent performance on new object detection (92.4% mAP)
@@ -66,7 +66,7 @@ The 50-epoch model shows fascinating characteristics:
 
 #### 🏆 20-Epoch Model: The Balanced Champion
 
-![20-Epoch Results](runs_02/train/yolov11_kitti_demo_safe_ft/results.png)
+![20-Epoch Results](docs/results_20.png)
 
 The 20-epoch model achieves the best balance:
 1. **Optimal Knowledge Retention**

@@ -31,12 +31,8 @@ datasets/*.zip
 datasets/*.tar.gz
 datasets/*.tgz
 mlruns/*
-# Ignore everything in
-runs_01/*
-runs_02/*
-# But not this specific file
-!runs_01/train/yolov11_kitti_production/results.png
-!runs_02/train/yolov11_kitti_demo_safe_ft/results.png
+runs_01/
+runs_02/
 
 # 🔑 Environment Variables & Secrets
 .env
