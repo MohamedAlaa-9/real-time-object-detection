@@ -3,12 +3,13 @@ Description=Real-time Object Detection Backend
 After=network.target
 
 [Service]
-User=aa30301161801636
-Group=aa30301161801636
-WorkingDirectory=/home/aa30301161801636/real-time-object-detection
-Environment="PYTHONPATH=/home/aa30301161801636/real-time-object-detection"
-Environment="PATH=/home/aa30301161801636/real-time-object-detection/venv/bin:$PATH"
-ExecStart=/home/aa30301161801636/real-time-object-detection/venv/bin/python backend/main.py
+User=aa30301161801636@depi.eui.edu.eg
+Group=aa30301161801636@depi.eui.edu.eg
+WorkingDirectory=/home/aa30301161801636/real-time-object-detection/backend
+Environment=PYTHONPATH=/home/aa30301161801636/real-time-object-detection
+Environment=PATH=/home/aa30301161801636/real-time-object-detection/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=VIRTUAL_ENV=/home/aa30301161801636/real-time-object-detection/venv
+ExecStart=/home/aa30301161801636/real-time-object-detection/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
 Restart=always
 RestartSec=3
 

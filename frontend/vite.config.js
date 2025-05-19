@@ -4,25 +4,18 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 export default defineConfig({
   plugins: [svelte()],
   server: {
+    port: 3000,
     proxy: {
-      // Proxy API requests to backend
       '/api': {
-        target: 'https://adelkazzaz.ninja',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: true
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
-      // Proxy WebSocket connections to backend
       '/ws': {
-        target: 'wss://adelkazzaz.ninja',
+        target: 'ws://localhost:8080',
         ws: true,
-        secure: true,
         changeOrigin: true
       }
     }
-  },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: false
   }
 });

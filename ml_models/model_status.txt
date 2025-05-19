@@ -1,4 +1,4 @@
-model_source=best-onnx
+model_source=yolo11n-onnx
 use_onnx=True
 use_pytorch=False
-using_fine_tuned=True
+using_fine_tuned=False
